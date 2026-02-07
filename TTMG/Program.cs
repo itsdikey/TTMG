@@ -34,13 +34,18 @@ namespace TTMG
                 AnsiConsole.Write(new FigletText("TTMG").LeftJustified().Color(Color.Cyan1));
 
                 var currentDir = Directory.GetCurrentDirectory();
-                var configPath = Path.Combine(currentDir, "TTMG", "scripts.yaml");
-                if (!File.Exists(configPath)) configPath = Path.Combine(currentDir, "scripts.yaml");
+                var configPath = Path.Combine(currentDir, "scripts.yaml");
+
 
                 if (File.Exists(configPath))
                 {
                     try { _config = deserializer.Deserialize<AppConfig>(File.ReadAllText(configPath)); }
                     catch (Exception ex) { AnsiConsole.MarkupLine($"[red]Error loading config:[/] {ex.Message}"); }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[yellow]No scripts.yaml found in current directory. Using defaults.[/]");
+                    WriteDefaultConfig(configPath);
                 }
 
                 if (!_config.SuppressUpdateChecks) { await Updater.CheckForUpdates(_config); }
@@ -104,6 +109,28 @@ namespace TTMG
                 AnsiConsole.MarkupLine("[bold grey]Press any key to continue...[/]");
                 Console.ReadKey(true);
             }
+        }
+
+        private static void WriteDefaultConfig(string configPath)
+        {
+            var defaultConfig = new AppConfig
+            {
+                VersionUrl = "https://github.com/itsdikey/TTMG/releases/download/v1.1.0/version.json",
+                DefaultShell = "cmd",
+                IMakeNoMistakes = false,
+                Commands = new List<CommandEntry>
+                {
+                    new () { Code = ":update", Action = "check_updates" },
+                    new () { Code = ":version", Action = "print_version" },
+                    new () { Code = ":qq", Action = "exit" },
+                    new () { Code = ":wq", Action = "exit" }
+                }
+            };
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            var yaml = serializer.Serialize(defaultConfig);
+            File.WriteAllText(configPath, yaml, Encoding.UTF8);
         }
 
         private static void PrintVersion()

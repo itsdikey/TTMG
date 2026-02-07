@@ -23,6 +23,7 @@ jobs:
         id: release
         with:
           release-type: dotnet-yoshi
+          initial-version: 0.0.1
 
   build:
     needs: release-please

@@ -1,0 +1,25 @@
+# Talk To Me Goose Configuration
+iMakeNoMistakes: false
+suppressUpdateChecks: false
+updateDirectory: "update"
+versionUrl: "https://raw.githubusercontent.com/user/TTMG/main/version.json"
+currentVersion: "1.0.0"
+defaultShell: "cmd" # Options: cmd, powershell, pwsh, bash, zsh, sh
+
+scripts:
+  - name: test
+    path: scripts/test.lua
+    alias: ":test"
+  - name: list_files
+    path: scripts/test.lua
+    alias: ":ls"
+
+repositories:
+  - shortName: official
+    url: "https://raw.githubusercontent.com/user/ttmg-scripts/main/"
+
+commands:
+  - code: ":qq"
+    action: exit
+  - code: ":wq"
+    action: exit

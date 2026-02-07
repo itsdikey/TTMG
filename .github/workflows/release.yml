@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+      body: ${{ steps.release.outputs.body }}
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        id: release
+        with:
+          release-type: dotnet
+
+  build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            runtime: linux-x64
+            artifact_name: ttmg-linux
+          - os: windows-latest
+            runtime: win-x64
+            artifact_name: ttmg-windows.exe
+          - os: macos-latest
+            runtime: osx-x64
+            artifact_name: ttmg-macos
+          - os: macos-latest
+            runtime: osx-arm64
+            artifact_name: ttmg-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish
+        run: dotnet publish TTMG/TTMG.csproj -c Release -r ${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained true -o ./publish
+      - name: Rename executable
+        shell: bash
+        run: |
+          if [[ "${{ matrix.runtime }}" == win-* ]]; then
+            mv ./publish/TTMG.exe ./publish/${{ matrix.artifact_name }}
+          else
+            mv ./publish/TTMG ./publish/${{ matrix.artifact_name }}
+          fi
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: ./publish/${{ matrix.artifact_name }}
+
+  post-release:
+    needs: [release-please, build]
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Create version.json
+        run: |
+          VERSION="${{ needs.release-please.outputs.version }}"
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          BODY=$(cat <<'EOF'
+          ${{ needs.release-please.outputs.body }}
+          EOF
+          )
+          ESCAPED_BODY=$(echo "$BODY" | jq -aRs .)
+          
+          cat <<EOF > version.json
+          {
+            "Version": "$VERSION",
+            "DownloadUrl": "https://github.com/${{ github.repository }}/releases/download/$TAG/ttmg-windows.exe",
+            "ReleaseNotes": $ESCAPED_BODY
+          }
+          EOF
+      - name: Update scripts.yaml version
+        run: |
+          VERSION="${{ needs.release-please.outputs.version }}"
+          sed -i "s/currentVersion: ".*"/currentVersion: "$VERSION"/" TTMG/scripts.yaml
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json TTMG/scripts.yaml
+          git commit -m "chore: update version files to ${{ needs.release-please.outputs.version }} [skip ci]"
+          git push
+      - name: Upload version.json to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: version.json

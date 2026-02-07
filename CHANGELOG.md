@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/itsdikey/TTMG/compare/v1.0.2...v1.1.0) (2026-02-07)
+
+
+### Features
+
+* version support ([5ce8d2b](https://github.com/itsdikey/TTMG/commit/5ce8d2bfb250569e0fead42a652c4bcebd790bd4))
+
 ## [1.0.2](https://github.com/itsdikey/TTMG/compare/v1.0.1...v1.0.2) (2026-02-07)
 
 

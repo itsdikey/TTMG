@@ -2,6 +2,53 @@
 
 A keyboard-driven script manager and terminal runner using Lua and Spectre.Console.
 
+## Installation & Setup
+Choose the command for your platform to download the latest version and add it to your system PATH.
+
+### Windows
+Open PowerShell as Administrator and run:
+
+```powershell
+# Create folder and download
+New-Item -ItemType Directory -Force -Path "$env:ProgramFiles\TTMG"
+Invoke-WebRequest -Uri "https://github.com/itsdikey/TTMG/releases/latest/download/ttmg-windows.exe" -OutFile "$env:ProgramFiles\TTMG\ttmg.exe"
+
+# Add to System PATH permanently
+$oldPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+if ($oldPath -notlike "*TTMG*") {
+    [Environment]::SetEnvironmentVariable("Path", "$oldPath;$env:ProgramFiles\TTMG", "Machine")
+    $env:Path += ";$env:ProgramFiles\TTMG"
+}
+```
+
+### macOS (Intel & Apple Silicon)
+Open your terminal and run:
+
+```bash
+# Determine architecture
+ARCH=$(uname -m | sed 's/x86_64/macos/;s/arm64/macos-arm64/')
+
+# Download and install
+sudo curl -L "https://github.com/itsdikey/TTMG/releases/latest/download/ttmg-$ARCH" -o /usr/local/bin/ttmg
+sudo chmod +x /usr/local/bin/ttmg
+```
+
+### Linux
+Open your terminal and run:
+
+```bash
+# Download and install
+sudo curl -L "https://github.com/itsdikey/TTMG/releases/latest/download/ttmg-linux" -o /usr/local/bin/ttmg
+sudo chmod +x /usr/local/bin/ttmg
+```
+
+### Verifying Installation
+Restart your terminal and type:
+
+```bash
+ttmg --version
+```
+
 ## Configuration (scripts.yaml)
 
 The application is configured via `scripts.yaml` in the root directory.

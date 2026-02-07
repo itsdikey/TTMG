@@ -17,6 +17,12 @@ namespace TTMG
 
         static async Task Main(string[] args)
         {
+            if (args.Length > 0 && (args[0] == "--version" || args[0] == "-v"))
+            {
+                PrintVersion();
+                return;
+            }
+
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .IgnoreUnmatchedProperties()
@@ -65,6 +71,7 @@ namespace TTMG
                 if (result == null) continue;
                 if (result == ":qq" || result == ":wq") break;
                 if (result.StartsWith(":update")) { await Updater.CheckForUpdates(_config, true); continue; }
+                if (result.StartsWith(":version")) { PrintVersion(); AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]"); Console.ReadKey(true); continue; }
                 if (result.StartsWith(":install")) 
                 { 
                     var parts = result.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -97,6 +104,12 @@ namespace TTMG
                 AnsiConsole.MarkupLine("[bold grey]Press any key to continue...[/]");
                 Console.ReadKey(true);
             }
+        }
+
+        private static void PrintVersion()
+        {
+            var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+            Console.WriteLine($"TTMG version {version}");
         }
 
         static Task<string?> RunInteractiveLoop(List<ScriptMetadata> allItems, Dictionary<string, Func<Task>> actionMap)

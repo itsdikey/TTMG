@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/itsdikey/TTMG/compare/v1.1.0...v1.1.1) (2026-02-07)
+
+
+### Bug Fixes
+
+* config file ([f211b46](https://github.com/itsdikey/TTMG/commit/f211b461d7da7b10f05852cf4dd6a2bf5e7b46b6))
+
 ## [1.1.0](https://github.com/itsdikey/TTMG/compare/v1.0.2...v1.1.0) (2026-02-07)
 
 

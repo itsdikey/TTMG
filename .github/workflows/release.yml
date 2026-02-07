@@ -23,8 +23,6 @@ jobs:
         id: release
         with:
           release-type: simple
-          version-file: version.txt
-          initial-version: 0.0.1
 
   build:
     needs: release-please

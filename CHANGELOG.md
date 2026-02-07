@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/itsdikey/TTMG/compare/v1.0.1...v1.0.2) (2026-02-07)
+
+
+### Bug Fixes
+
+* post release script ([86b0706](https://github.com/itsdikey/TTMG/commit/86b07064b462761a1026520b9f70d7a8a5f542b3))
+
 ## [1.0.1](https://github.com/itsdikey/TTMG/compare/v1.0.0...v1.0.1) (2026-02-07)
 
 

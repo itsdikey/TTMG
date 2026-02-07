@@ -1,21 +1,28 @@
-using System.Text.Json;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using Spectre.Console;
+using TTMG.Interfaces;
 
-namespace TTMG
+namespace TTMG.Services
 {
-    public static class Updater
+    public class UpdaterService : IUpdaterService
     {
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private readonly IConfigService _configService;
+        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
 
-        static Updater()
+        static UpdaterService()
         {
-            // GitHub API requires a User-Agent
             _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("TTMG", "1.0"));
         }
 
-        public static async Task CheckForUpdates(AppConfig config, bool manual = false)
+        public UpdaterService(IConfigService configService)
         {
+            _configService = configService;
+        }
+
+        public async Task CheckForUpdates(bool manual = false)
+        {
+            var config = _configService.Config;
             if (string.IsNullOrEmpty(config.VersionUrl))
             {
                 if (manual) AnsiConsole.MarkupLine("[red]Version URL not configured in yaml.[/]");
@@ -41,7 +48,7 @@ namespace TTMG
                     
                     if (AnsiConsole.Confirm("Would you like to download the update?"))
                     {
-                        await PerformUpdate(config, remoteInfo);
+                        await PerformUpdate(remoteInfo);
                     }
                 }
                 else if (manual)
@@ -55,7 +62,7 @@ namespace TTMG
             }
         }
 
-        private static bool IsNewer(string remoteVersion, string currentVersion)
+        private bool IsNewer(string remoteVersion, string currentVersion)
         {
             if (Version.TryParse(remoteVersion, out var v1) && Version.TryParse(currentVersion, out var v2))
             {
@@ -64,11 +71,12 @@ namespace TTMG
             return remoteVersion != currentVersion;
         }
 
-        private static async Task PerformUpdate(AppConfig config, VersionInfo info)
+        private async Task PerformUpdate(VersionInfo info)
         {
             try
             {
-                var updatePath = Path.Combine(Directory.GetCurrentDirectory(), config.UpdateDirectory);
+                var config = _configService.Config;
+                var updatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, config.UpdateDirectory);
                 if (!Directory.Exists(updatePath)) Directory.CreateDirectory(updatePath);
 
                 var fileName = Path.GetFileName(new Uri(info.DownloadUrl).LocalPath);
@@ -89,8 +97,9 @@ namespace TTMG
             }
         }
 
-        public static async Task InstallScripts(AppConfig config, string repoName, string[] scriptNames)
+        public async Task InstallScripts(string repoName, string[] scriptNames)
         {
+            var config = _configService.Config;
             var repo = config.Repositories.FirstOrDefault(r => r.ShortName.Equals(repoName, StringComparison.OrdinalIgnoreCase));
             if (repo == null)
             {
@@ -98,7 +107,7 @@ namespace TTMG
                 return;
             }
 
-            var scriptsPath = Path.Combine(Directory.GetCurrentDirectory(), "scripts");
+            var scriptsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts");
             if (!Directory.Exists(scriptsPath)) Directory.CreateDirectory(scriptsPath);
 
             foreach (var name in scriptNames)

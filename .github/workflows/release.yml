@@ -72,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: master
       - name: Create version.json
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"

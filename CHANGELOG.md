@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/itsdikey/TTMG/compare/v1.0.0...v1.0.1) (2026-02-07)
+
+
+### Bug Fixes
+
+* branch name fixed ([3eedfca](https://github.com/itsdikey/TTMG/commit/3eedfca1611a3922817b000befa3d82265531e29))
+
 ## 1.0.0 (2026-02-07)
 
 

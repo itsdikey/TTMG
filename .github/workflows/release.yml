@@ -18,10 +18,10 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       body: ${{ steps.release.outputs.body }}
     steps:
-      - uses: google-github-actions/release-please-action@v4
+      - uses: googleapis/release-please-action@v4
         id: release
         with:
-          release-type: dotnet
+          release-type: dotnet-yoshi
 
   build:
     needs: release-please
@@ -92,7 +92,7 @@ jobs:
       - name: Update scripts.yaml version
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
-          sed -i "s/currentVersion: ".*"/currentVersion: "$VERSION"/" TTMG/scripts.yaml
+          sed -i "s/currentVersion: "*"/currentVersion: "$VERSION"/" TTMG/scripts.yaml
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"

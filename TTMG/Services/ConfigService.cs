@@ -53,6 +53,7 @@ namespace TTMG.Services
                     new () { Code = ":create", Action = "create_script" },
                     new () { Code = ":update", Action = "check_updates" },
                     new () { Code = ":version", Action = "print_version" },
+                    new () { Code = ":secret", Action = "manage_secrets" },
                     new () { Code = ":qq", Action = "exit" },
                     new () { Code = ":wq", Action = "exit" }
                 };
@@ -117,11 +118,18 @@ namespace TTMG.Services
                     new () { Code = ":create", Action = "create_script" },
                     new () { Code = ":update", Action = "check_updates" },
                     new () { Code = ":version", Action = "print_version" },
+                    new () { Code = ":secret", Action = "manage_secrets" },
                     new () { Code = ":qq", Action = "exit" },
                     new () { Code = ":wq", Action = "exit" }
                 }
             };
 
+            SaveConfig();
+        }
+
+        public void SaveConfig()
+        {
+            var configPath = GetConfigPath();
             var yaml = _serializer.Serialize(_config);
             File.WriteAllText(configPath, yaml, Encoding.UTF8);
         }

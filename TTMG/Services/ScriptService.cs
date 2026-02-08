@@ -7,10 +7,12 @@ namespace TTMG.Services
     public class ScriptService : IScriptService
     {
         private readonly IConfigService _configService;
+        private readonly ISecretService _secretService;
 
-        public ScriptService(IConfigService configService)
+        public ScriptService(IConfigService configService, ISecretService secretService)
         {
             _configService = configService;
+            _secretService = secretService;
         }
 
         public List<ScriptMetadata> DiscoverScripts()
@@ -108,13 +110,14 @@ namespace TTMG.Services
         {
             if (!File.Exists(path)) { AnsiConsole.MarkupLine($"[red]File not found:[/] {path}"); return; }
             using var state = LuaState.Create();
-            var env = new LuaEnv(_configService.Config);
+            var env = new LuaEnv(_configService.Config, _secretService);
             state.Environment["env"] = LuaValue.FromObject(env);
             string wrapper = @"
                 prompt_input = function(t) return env:prompt_input(t) end
                 prompt_select = function(t, o) return env:prompt_select(t, o) end
                 run_process = function(c, a, d) env:run_process(c, a, d) end
                 run_shell = function(c, d) env:run_shell(c, d) end
+                get_secret = function(n) return env:get_secret(n) end
                 print = function(t) env:print(t) end";
             await state.DoStringAsync(wrapper);
             try { await state.DoStringAsync(await File.ReadAllTextAsync(path)); }

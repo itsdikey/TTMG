@@ -19,6 +19,7 @@ namespace TTMG
                 .ConfigureServices((_, services) =>
                 {
                     services.AddSingleton<IConfigService, ConfigService>();
+                    services.AddSingleton<ISecretService, SecretService>();
                     services.AddSingleton<IScriptService, ScriptService>();
                     services.AddSingleton<IUpdaterService, UpdaterService>();
                     services.AddSingleton<IAppService, AppService>();

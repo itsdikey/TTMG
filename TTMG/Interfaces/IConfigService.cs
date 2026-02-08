@@ -4,6 +4,7 @@ namespace TTMG.Interfaces
     {
         AppConfig Config { get; }
         void LoadConfig();
+        void SaveConfig();
         void EnsureDefaultConfig();
     }
 }

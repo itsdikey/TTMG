@@ -9,6 +9,7 @@ namespace TTMG.Services
         private readonly IConfigService _configService;
         private readonly IScriptService _scriptService;
         private readonly IUpdaterService _updaterService;
+        private readonly ISecretService _secretService;
 
         private enum Mode { Command, Menu }
         private class MiniValueState<T>
@@ -26,11 +27,12 @@ namespace TTMG.Services
         private string _filterInput = "";
         private int _selectedIndex = 0;
 
-        public AppService(IConfigService configService, IScriptService scriptService, IUpdaterService updaterService)
+        public AppService(IConfigService configService, IScriptService scriptService, IUpdaterService updaterService, ISecretService secretService)
         {
             _configService = configService;
             _scriptService = scriptService;
             _updaterService = updaterService;
+            _secretService = secretService;
         }
 
         public async Task Run(string[] args)
@@ -119,6 +121,45 @@ namespace TTMG.Services
                         AnsiConsole.MarkupLine("[red]Usage: :install <repo> <script1> <script2>...[/]");
                     }
 
+                    continue;
+                }
+
+                if (result.StartsWith(":secret"))
+                {
+                    string[] parts = result.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 2)
+                    {
+                        var subCommand = parts[1].ToLower();
+                        if (subCommand == "create" && parts.Length >= 3)
+                        {
+                            _secretService.CreateSecret(parts[2]);
+                        }
+                        else if (subCommand == "list")
+                        {
+                            var secrets = _secretService.ListSecrets();
+                            if (secrets.Any())
+                            {
+                                AnsiConsole.MarkupLine("[bold cyan]Available secrets:[/]");
+                                foreach (var s in secrets) AnsiConsole.MarkupLine($"- {s}");
+                            }
+                            else AnsiConsole.MarkupLine("[grey]No secrets found.[/]");
+                        }
+                        else if (subCommand == "get" && parts.Length >= 3)
+                        {
+                            var val = _secretService.GetSecret(parts[2]);
+                            if (val != null) AnsiConsole.MarkupLine($"Secret [yellow]{parts[2]}[/]: [green]{val}[/]");
+                        }
+                        else
+                        {
+                            AnsiConsole.MarkupLine("[red]Usage: :secret <create|list|get> [name][/]");
+                        }
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine("[red]Usage: :secret <create|list|get> [[name]][/]");
+                    }
+                    AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]");
+                    Console.ReadKey(true);
                     continue;
                 }
 
@@ -238,6 +279,12 @@ namespace TTMG.Services
                         _filterInput = "";
                         _selectedIndex = 0;
                         return Task.FromResult<string?>(null);
+                    }
+                    if (key.Key == ConsoleKey.RightArrow
+                        && bestMatch!=null
+                        && _commandInput.Length>0)
+                    {
+                        _commandInput = bestMatch.DisplayName;
                     }
                     if (key.Key == ConsoleKey.Backspace && _commandInput.Length > 0)
                     {

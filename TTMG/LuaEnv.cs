@@ -8,11 +8,16 @@ namespace TTMG
     public partial class LuaEnv
     {
         private readonly AppConfig _config;
+        private readonly Interfaces.ISecretService _secretService;
 
-        public LuaEnv(AppConfig config)
+        public LuaEnv(AppConfig config, Interfaces.ISecretService secretService)
         {
             _config = config;
+            _secretService = secretService;
         }
+
+        [LuaMember]
+        public string? get_secret(string name, string? password = null) => _secretService.GetSecret(name, password);
 
         [LuaMember]
         public string prompt_input(string title) => AnsiConsole.Ask<string>(title);

@@ -109,18 +109,29 @@ namespace TTMG.Services
         public async Task RunScript(string path)
         {
             if (!File.Exists(path)) { AnsiConsole.MarkupLine($"[red]File not found:[/] {path}"); return; }
+            var scriptContent = await File.ReadAllTextAsync(path);
+            
+            string? sharedPassword = null;
+            if (scriptContent.Contains("get_secret"))
+            {
+                sharedPassword = AnsiConsole.Prompt(new TextPrompt<string>("Script requires secrets. Enter password to unlock store:").Secret());
+            }
+
             using var state = LuaState.Create();
             var env = new LuaEnv(_configService.Config, _secretService);
             state.Environment["env"] = LuaValue.FromObject(env);
+            state.Environment["pass"] = sharedPassword != null ? LuaValue.FromObject(sharedPassword) : LuaValue.Nil;
+
             string wrapper = @"
                 prompt_input = function(t) return env:prompt_input(t) end
                 prompt_select = function(t, o) return env:prompt_select(t, o) end
                 run_process = function(c, a, d) env:run_process(c, a, d) end
                 run_shell = function(c, d) env:run_shell(c, d) end
-                get_secret = function(n) return env:get_secret(n) end
+                get_secret = function(n) return env:get_secret(n, pass) end
                 print = function(t) env:print(t) end";
             await state.DoStringAsync(wrapper);
-            try { await state.DoStringAsync(await File.ReadAllTextAsync(path)); }
+            
+            try { await state.DoStringAsync(scriptContent); }
             catch (Exception ex) { AnsiConsole.WriteException(ex); }
         }
 
@@ -141,9 +152,22 @@ namespace TTMG.Services
             var filePath = Path.Combine(folderPath, "init.lua");
             if (!File.Exists(filePath))
             {
-                await File.WriteAllTextAsync(filePath, $"-- New script: {name}\nprint('Hello from {name}!')");
+                var docLines = new[]
+                {
+                    $"-- TTMG Script: {name.ToUpper()}",
+                    "-- Available methods:",
+                    "-- prompt_input(title) -> string                 | Prompts the user for text input.",
+                    "-- prompt_select(title, options_table) -> string | Shows a selection menu to the user.",
+                    "-- run_process(command, args, detached_bool)     | Runs an external process.",
+                    "-- run_shell(command, detached_bool)             | Runs a command in the default shell.",
+                    "-- get_secret(name) -> string?                   | Retrieves an encrypted secret from the store.",
+                    "-- print(text)                                   | Prints text to the console (supports markup).",
+                    "",
+                    $"print('Hello from {name}!')"
+                };
+                var doc = string.Join(Environment.NewLine, docLines);
+                await File.WriteAllTextAsync(filePath, doc);
             }
-
             OpenInEditor(filePath);
         }
 

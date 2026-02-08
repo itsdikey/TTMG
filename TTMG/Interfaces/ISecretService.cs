@@ -4,6 +4,6 @@ namespace TTMG.Interfaces
     {
         void CreateSecret(string name);
         List<string> ListSecrets();
-        string? GetSecret(string name);
+        string? GetSecret(string name, string? password = null);
     }
 }

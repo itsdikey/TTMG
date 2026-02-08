@@ -17,7 +17,7 @@ namespace TTMG
         }
 
         [LuaMember]
-        public string? get_secret(string name) => _secretService.GetSecret(name);
+        public string? get_secret(string name, string? password = null) => _secretService.GetSecret(name, password);
 
         [LuaMember]
         public string prompt_input(string title) => AnsiConsole.Ask<string>(title);

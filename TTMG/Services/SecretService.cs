@@ -47,17 +47,16 @@ namespace TTMG.Services
             return LoadSecretNames();
         }
 
-        public string? GetSecret(string name)
+        public string? GetSecret(string name, string? password = null)
         {
             var names = LoadSecretNames();
 
             if (!names.Contains(name))
             {
-                AnsiConsole.MarkupLine($"[red]Secret {name} does not exist.[/]");
                 return null;
             }
 
-            var password = AnsiConsole.Prompt(new TextPrompt<string>($"Enter password to retrieve secret [yellow]{name}[/]:").Secret());
+            password ??= AnsiConsole.Prompt(new TextPrompt<string>($"Enter password to retrieve secret [yellow]{name}[/]:").Secret());
             var path = GetStorePath();
 
             var exists = File.Exists(path);

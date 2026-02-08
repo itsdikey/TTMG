@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/itsdikey/TTMG/compare/v1.1.1...v1.2.0) (2026-02-08)
+
+
+### Features
+
+* autocomplete, secret store ([48ede5b](https://github.com/itsdikey/TTMG/commit/48ede5b5a080db413787ca335b892e2646029732))
+
 ## [1.1.1](https://github.com/itsdikey/TTMG/compare/v1.1.0...v1.1.1) (2026-02-07)
 
 

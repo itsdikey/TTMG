@@ -109,6 +109,45 @@ namespace TTMG.Services
                 {
                     SaveConfig();
                 }
+
+                // Ensure system commands exist in the loaded config
+                bool updated = false;
+                if (_config.Commands == null)
+                {
+                    _config.Commands = new List<CommandEntry>();
+                    updated = true;
+                }
+
+                var systemCommands = new List<CommandEntry>
+                {
+                    new () { Code = ":create", Action = "create_script" },
+                    new () { Code = ":update", Action = "check_updates" },
+                    new () { Code = ":version", Action = "print_version" },
+                    new () { Code = ":qq", Action = "exit" },
+                    new () { Code = ":wq", Action = "exit" }
+                };
+
+                foreach (var sys in systemCommands)
+                {
+                    if (!_config.Commands.Any(c => string.Equals(c.Code, sys.Code, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        _config.Commands.Add(sys);
+                        updated = true;
+                    }
+                }
+
+                if (updated)
+                {
+                    try
+                    {
+                        var yaml = _serializer.Serialize(_config);
+                        File.WriteAllText(configPath, yaml, Encoding.UTF8);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error saving updated config: {ex.Message}");
+                    }
+                }
             }
             else
             {

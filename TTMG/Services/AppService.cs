@@ -48,41 +48,57 @@ namespace TTMG.Services
                 AnsiConsole.Clear();
                 AnsiConsole.Write(new FigletText("TTMG").LeftJustified().Color(Color.Cyan1));
 
-                var config = _configService.Config;
+                AppConfig config = _configService.Config;
 
-                if (!config.SuppressUpdateChecks) { await _updaterService.CheckForUpdates(); }
+                if (!config.SuppressUpdateChecks)
+                { await _updaterService.CheckForUpdates(); }
 
-                var discoveredScripts = _scriptService.DiscoverScripts();
+                List<ScriptMetadata> discoveredScripts = _scriptService.DiscoverScripts();
 
-                var actionMap = new Dictionary<string, Func<Task>>();
-                var allItems = new List<ScriptMetadata>();
+                Dictionary<string, Func<Task>> actionMap = new();
+                List<ScriptMetadata> allItems = new();
 
                 int idx = 1;
-                foreach (var cmd in config.Commands)
+                foreach (CommandEntry cmd in config.Commands)
                 {
-                    var meta = new ScriptMetadata { DisplayName = cmd.Code, Index = idx++, IsCommand = true };
+                    ScriptMetadata meta = new() { DisplayName = cmd.Code, Index = idx++, IsCommand = true };
                     allItems.Add(meta);
-                    actionMap[meta.DisplayName] = () => { if (cmd.Action == "exit") Environment.Exit(0); return Task.CompletedTask; };
+                    actionMap[meta.DisplayName] = () => { if (cmd.Action == "exit") { Environment.Exit(0); } return Task.CompletedTask; };
                 }
 
-                foreach (var script in discoveredScripts)
+                idx=1;
+
+                foreach (ScriptMetadata script in discoveredScripts)
                 {
                     script.Index = idx++;
                     allItems.Add(script);
                     actionMap[script.DisplayName] = () => _scriptService.RunScript(script.FullPath);
-                    if (!string.IsNullOrEmpty(script.Alias)) actionMap[script.Alias] = actionMap[script.DisplayName];
+                    if (!string.IsNullOrEmpty(script.Alias))
+                    {
+                        actionMap[script.Alias] = actionMap[script.DisplayName];
+                    }
                 }
 
                 _currentMode.Reset();
                 string? result = await RunInteractiveLoop(allItems, actionMap);
 
-                if (result == null) continue;
-                if (result == ":qq" || result == ":wq") break;
-                if (result.StartsWith(":update")) { await _updaterService.CheckForUpdates(true); continue; }
-                if (result.StartsWith(":version")) { PrintVersion(); AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]"); Console.ReadKey(true); continue; }
+                if (result == null)
+                {
+                    continue;
+                }
+
+                if (result == ":qq" || result == ":wq")
+                {
+                    break;
+                }
+
+                if (result.StartsWith(":update"))
+                { await _updaterService.CheckForUpdates(true); continue; }
+                if (result.StartsWith(":version"))
+                { PrintVersion(); AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]"); Console.ReadKey(true); continue; }
                 if (result.StartsWith(":create"))
                 {
-                    var parts = result.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    string[] parts = result.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     string? name = parts.Length > 1 ? parts[1] : null;
                     if (string.IsNullOrEmpty(name))
                     {
@@ -91,26 +107,33 @@ namespace TTMG.Services
                     await _scriptService.CreateNewScript(name);
                     continue;
                 }
-                if (result.StartsWith(":install")) 
-                { 
-                    var parts = result.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 3) await _updaterService.InstallScripts(parts[1], parts.Skip(2).ToArray());
-                    else AnsiConsole.MarkupLine("[red]Usage: :install <repo> <script1> <script2>...[/]");
-                    continue; 
+                if (result.StartsWith(":install"))
+                {
+                    string[] parts = result.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 3)
+                    {
+                        await _updaterService.InstallScripts(parts[1], parts.Skip(2).ToArray());
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine("[red]Usage: :install <repo> <script1> <script2>...[/]");
+                    }
+
+                    continue;
                 }
 
                 AnsiConsole.Clear();
                 if (result.StartsWith("\\"))
                 {
-                    var commandToRun = result.Substring(1);
-                    var (shell, argsPrefix) = LuaEnv.GetShellInfo(config.DefaultShell);
-                    
+                    string commandToRun = result.Substring(1);
+                    (string shell, string argsPrefix) = LuaEnv.GetShellInfo(config.DefaultShell);
+
                     AnsiConsole.MarkupLine($"[bold blue]Executing terminal command ([yellow]{shell}[/]):[/] [green]{commandToRun}[/]");
                     AnsiConsole.Write(new Rule());
-                    
+
                     LuaEnv.ExecuteProcess(shell, $"{argsPrefix} \"{commandToRun.Replace("\"", "\\\"")}\"", false);
                 }
-                else if (actionMap.TryGetValue(result, out var action))
+                else if (actionMap.TryGetValue(result, out Func<Task>? action))
                 {
                     await action();
                 }
@@ -127,14 +150,14 @@ namespace TTMG.Services
 
         private Task<string?> RunInteractiveLoop(List<ScriptMetadata> allItems, Dictionary<string, Func<Task>> actionMap)
         {
-            var config = _configService.Config;
+            AppConfig config = _configService.Config;
             while (true)
             {
                 List<ScriptMetadata> filtered;
                 if (_currentMode.Value == Mode.Command)
                 {
                     filtered = allItems
-                        .Where(m => string.IsNullOrEmpty(_commandInput) || 
+                        .Where(m => string.IsNullOrEmpty(_commandInput) ||
                                     m.DisplayName.Contains(_commandInput, StringComparison.OrdinalIgnoreCase) ||
                                     m.Index.ToString() == _commandInput ||
                                     (m.Alias != null && m.Alias.Contains(_commandInput, StringComparison.OrdinalIgnoreCase)))
@@ -144,7 +167,7 @@ namespace TTMG.Services
                 {
                     filtered = allItems
                         .Where(m => !m.IsCommand)
-                        .Where(m => string.IsNullOrEmpty(_filterInput) || 
+                        .Where(m => string.IsNullOrEmpty(_filterInput) ||
                                     m.DisplayName.Contains(_filterInput, StringComparison.OrdinalIgnoreCase) ||
                                     m.Index.ToString() == _filterInput)
                         .ToList();
@@ -152,33 +175,82 @@ namespace TTMG.Services
 
                 if (config.IMakeNoMistakes && filtered.Count == 1 && _currentMode.Value == Mode.Command && !string.IsNullOrEmpty(_commandInput))
                 {
-                    var res = filtered[0].DisplayName;
+                    string res = filtered[0].DisplayName;
                     _commandInput = "";
                     _filterInput = "";
                     return Task.FromResult<string?>(res);
                 }
 
+                // local scoring helper prefers exact > numeric index match > startswith > contains
+                static int ScoreMatch(string input, ScriptMetadata m)
+                {
+                    if (string.IsNullOrEmpty(input)) return -1;
+                    int score = 0;
+                    if (string.Equals(m.DisplayName, input, StringComparison.OrdinalIgnoreCase)) score += 1000;
+                    if (m.Index.ToString() == input) score += 500;
+                    if (m.DisplayName.StartsWith(input, StringComparison.OrdinalIgnoreCase)) score += 100;
+                    if (m.DisplayName.IndexOf(input, StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+                    return score;
+                }
+
                 if (_currentMode.Value == Mode.Command)
                 {
-                    if (_currentMode.CheckDirtyAndClean())
+                    AnsiConsole.Clear();
+
+                    AnsiConsole.Write(new FigletText("TTMG").LeftJustified().Color(Color.Cyan1));
+
+                    AnsiConsole.MarkupLine("[grey]Type script name, [yellow]number[/], or [bold yellow]\\command[/]. [blue]Tab[/] for menu.[/]");
+
+                    var bestMatch = filtered
+                        .Select(m => new { Meta = m, Score = ScoreMatch(_commandInput, m) })
+                        .Where(x => x.Score > 0)
+                        .OrderByDescending(x => x.Score)
+                        .ThenBy(x => x.Meta.Index)
+                        .Select(x => x.Meta)
+                        .FirstOrDefault();
+
+                    var output = $"[bold cyan]goose>[/] {_commandInput}";
+
+                    if (bestMatch != null && _commandInput.Length > 0)
                     {
-                        AnsiConsole.MarkupLine("[grey]Type script name, [yellow]number[/], or [bold yellow]\\command[/]. [blue]Tab[/] for menu.[/]");
-                        AnsiConsole.Markup("[bold cyan]goose>[/] " + _commandInput);
+                        output += $"[grey]{bestMatch.DisplayName.Substring(_commandInput.Length)}[/]";
                     }
-                    
-                    var key = Console.ReadKey(true);
+
+                    AnsiConsole.Markup(output);
+
+                    if(bestMatch != null)
+                    {
+                        AnsiConsole.Cursor.MoveLeft(bestMatch.DisplayName.Length-_commandInput.Length);
+                    }
+
+
+                    ConsoleKeyInfo key = Console.ReadKey(true);
                     if (key.Key == ConsoleKey.Enter)
                     {
-                        var cmd = _commandInput;
+                        string cmd = _commandInput;
                         _commandInput = "";
                         Console.WriteLine();
                         return Task.FromResult<string?>(cmd);
                     }
-                    if (key.Key == ConsoleKey.Tab) { _currentMode.Value = Mode.Menu; _filterInput = ""; _selectedIndex = 0; return null; }
-                    if (key.Key == ConsoleKey.Backspace && _commandInput.Length > 0) { _commandInput = _commandInput[..^1]; Console.Write("\b \b"); }
-                    else if (!char.IsControl(key.KeyChar)) { _commandInput += key.KeyChar; Console.Write(key.KeyChar); }
+                    if (key.Key == ConsoleKey.Tab)
+                    {
+                        _currentMode.Value = Mode.Menu;
+                        _filterInput = "";
+                        _selectedIndex = 0;
+                        return Task.FromResult<string?>(null);
+                    }
+                    if (key.Key == ConsoleKey.Backspace && _commandInput.Length > 0)
+                    {
+                        _commandInput = _commandInput[..^1];
+                        Console.Write("\b \b");
+                    }
+                    else if (!char.IsControl(key.KeyChar))
+                    {
+                        _commandInput += key.KeyChar;
+                        Console.Write(key.KeyChar);
+                    }
                 }
-                else if(_currentMode.Value == Mode.Menu)
+                else if (_currentMode.Value == Mode.Menu)
                 {
                     if (_selectedIndex >= filtered.Count)
                     {
@@ -188,13 +260,35 @@ namespace TTMG.Services
                     AnsiConsole.Clear();
                     AnsiConsole.Write(new FigletText("TTMG").LeftJustified().Color(Color.Cyan1));
                     AnsiConsole.MarkupLine("[grey]Arrows to select, type to filter. [blue]Tab[/] for command mode.[/]");
-                    AnsiConsole.MarkupLine($"[bold cyan]Search:[/] {_filterInput}_");
+
+                    // scored filtering here: exact / numeric / startswith / contains
+                    var bestMatch = filtered
+                        .Select(m => new { Meta = m, Score = ScoreMatch(_filterInput, m) })
+                        .Where(x => x.Score > 0)
+                        .OrderByDescending(x => x.Score)
+                        .ThenBy(x => x.Meta.Index)
+                        .Select(x => x.Meta)
+                        .FirstOrDefault();
+
+                    var output = $"[bold cyan]Run:[/] {_filterInput}";
+
+                    if (bestMatch != null
+                        && _filterInput.Length > 0)
+                    {
+                        output += $"[grey]{bestMatch.DisplayName.Substring(_filterInput.Length)}[/]";
+                    }
+
+                    AnsiConsole.MarkupLine(output);
+                    var line = Console.CursorTop;
+
                     AnsiConsole.Write(new Rule());
 
-                    for (int i = 0; i < Math.Min(filtered.Count, 15); i++)
+                    var len = filtered.Count > 15 ? 15 : filtered.Count;
+
+                    for (int i = 0; i < len; i++)
                     {
-                        var m = filtered[i];
-                        var text = $"{m.Index}. {m.DisplayName}";
+                        ScriptMetadata m = filtered[i];
+                        string text = $"{m.Index}. {m.DisplayName}";
                         if (i == _selectedIndex)
                         {
                             AnsiConsole.MarkupLine($"[black on white] > {text} [/]");
@@ -204,22 +298,58 @@ namespace TTMG.Services
                             AnsiConsole.MarkupLine($"   {text}");
                         }
                     }
-                    if (filtered.Count == 0) AnsiConsole.MarkupLine("[red]No matches found.[/]");
+                    if (filtered.Count == 0)
+                    {
+                        AnsiConsole.MarkupLine("[red]No matches found.[/]");
+                    }
 
-                    var key = Console.ReadKey(true);
-                    if (key.Key == ConsoleKey.Tab) { _currentMode.Value = Mode.Command; return Task.FromResult<string?>(null); }
-                    if (key.Key == ConsoleKey.Enter && filtered.Count > 0) return Task.FromResult<string?>(filtered[_selectedIndex].DisplayName);
-                    if (key.Key == ConsoleKey.UpArrow) _selectedIndex = (_selectedIndex - 1 + filtered.Count) % Math.Max(1, filtered.Count);
-                    if (key.Key == ConsoleKey.DownArrow) _selectedIndex = (_selectedIndex + 1) % Math.Max(1, filtered.Count);
-                    if (key.Key == ConsoleKey.Backspace && _filterInput.Length > 0) { _filterInput = _filterInput[..^1]; _selectedIndex = 0; }
-                    else if (!char.IsControl(key.KeyChar)) { _filterInput += key.KeyChar; _selectedIndex = 0; }
+                    AnsiConsole.Cursor.SetPosition(6+_filterInput.Length, line);
+
+                    ConsoleKeyInfo key = Console.ReadKey(true);
+                    if (key.Key == ConsoleKey.Tab)
+                    {
+                        _currentMode.Value = Mode.Command;
+                        return Task.FromResult<string?>(null);
+                    }
+                    if (key.Key == ConsoleKey.Enter && filtered.Count > 0)
+                    {
+                        _filterInput = "";
+                        return Task.FromResult<string?>(filtered[_selectedIndex].DisplayName);
+                    }
+
+                    if (key.Key == ConsoleKey.UpArrow)
+                    {
+                        _selectedIndex = (_selectedIndex - 1 + filtered.Count) % Math.Max(1, filtered.Count);
+                    }
+
+                    if (key.Key == ConsoleKey.DownArrow)
+                    {
+                        _selectedIndex = (_selectedIndex + 1) % Math.Max(1, filtered.Count);
+                    }
+
+                    if(key.Key == ConsoleKey.RightArrow
+                        && bestMatch!=null
+                        && _filterInput.Length>0)
+                    {
+                        _filterInput = bestMatch.DisplayName;
+                    }
+
+                    if (key.Key == ConsoleKey.Backspace && _filterInput.Length > 0)
+                    {
+                        _filterInput = _filterInput[..^1];
+                        _selectedIndex = 0;
+                    }
+                    else if (!char.IsControl(key.KeyChar))
+                    {
+                        _filterInput += key.KeyChar; _selectedIndex = 0;
+                    }
                 }
             }
         }
 
         private void PrintVersion()
         {
-            var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+            string version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
             Console.WriteLine($"TTMG version {version}");
         }
     }

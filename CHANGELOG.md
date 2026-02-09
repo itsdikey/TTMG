@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/itsdikey/TTMG/compare/v1.2.0...v1.2.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* fixed yaml file ([#10](https://github.com/itsdikey/TTMG/issues/10)) ([07d9927](https://github.com/itsdikey/TTMG/commit/07d9927be636015b2af935b371104f0ab8770dd9))
+
 ## [1.2.0](https://github.com/itsdikey/TTMG/compare/v1.1.1...v1.2.0) (2026-02-08)
 
 

@@ -397,7 +397,7 @@ namespace TTMG.Services
         private void PrintVersion()
         {
             string version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
-            Console.WriteLine($"TTMG version {version}");
+            AnsiConsole.MarkupLine($"[bold cyan]TTMG version[/] [green]{version}[/]");
         }
     }
 }

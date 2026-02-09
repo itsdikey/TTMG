@@ -107,7 +107,7 @@ namespace TTMG.Services
                 return;
             }
 
-            var scriptsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts");
+            var scriptsPath = Path.Combine(_configService.DataDirectory, "scripts");
             if (!Directory.Exists(scriptsPath)) Directory.CreateDirectory(scriptsPath);
 
             foreach (var name in scriptNames)

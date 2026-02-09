@@ -18,11 +18,25 @@ namespace TTMG.Services
         public List<ScriptMetadata> DiscoverScripts()
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var dataDir = _configService.DataDirectory;
             var config = _configService.Config;
             
-            EnsureHelloWorldExists(baseDir);
+            EnsureHelloWorldExists(dataDir);
 
             var discoveredScripts = Discover(baseDir, config);
+
+            if (dataDir != baseDir)
+            {
+                var dataScripts = Discover(dataDir, config);
+                foreach (var ds in dataScripts)
+                {
+                    if (!discoveredScripts.Any(s => s.FullPath == ds.FullPath))
+                    {
+                        discoveredScripts.Add(ds);
+                    }
+                }
+            }
+
             if (!string.IsNullOrEmpty(config.UserScriptsDirectory))
             {
                 var userScripts = Discover(Environment.ExpandEnvironmentVariables(config.UserScriptsDirectory), config);
@@ -188,15 +202,18 @@ namespace TTMG.Services
             }
         }
 
-        private void EnsureHelloWorldExists(string baseDir)
+        private void EnsureHelloWorldExists(string targetDir)
         {
-            var scriptsDir = Path.Combine(baseDir, "scripts");
-            if (!Directory.Exists(scriptsDir)) Directory.CreateDirectory(scriptsDir);
+            var scriptsDir = Path.Combine(targetDir, "scripts");
+            if (!Directory.Exists(scriptsDir))
+            {
+                try { Directory.CreateDirectory(scriptsDir); } catch { return; }
+            }
             
             var helloPath = Path.Combine(scriptsDir, "hello.lua");
             if (!File.Exists(helloPath))
             {
-                File.WriteAllText(helloPath, "print('Hello, world! This is TTMG.')\nprint('You can create new scripts with :create <name>')");
+                try { File.WriteAllText(helloPath, "print('Hello, world! This is TTMG.')\nprint('You can create new scripts with :create <name>')"); } catch { }
             }
         }
     }

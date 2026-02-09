@@ -9,12 +9,15 @@ namespace TTMG.Services
     {
         private const string StoreFileName = "secrets.bin";
         private const string SecretsNamesFileName = "secret_names.dat";
-        public SecretService()
+        private readonly IConfigService _configService;
+
+        public SecretService(IConfigService configService)
         {
+            _configService = configService;
         }
 
-        private string GetStorePath() => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, StoreFileName);
-        private string GetNamesPath() => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SecretsNamesFileName);
+        private string GetStorePath() => Path.Combine(_configService.DataDirectory, StoreFileName);
+        private string GetNamesPath() => Path.Combine(_configService.DataDirectory, SecretsNamesFileName);
 
         public void CreateSecret(string name)
         {

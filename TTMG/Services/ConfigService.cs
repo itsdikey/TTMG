@@ -11,8 +11,10 @@ namespace TTMG.Services
         private readonly IDeserializer _deserializer;
         private readonly ISerializer _serializer;
         private AppConfig _config = new();
+        private readonly string _dataDirectory;
 
         public AppConfig Config => _config;
+        public string DataDirectory => _dataDirectory;
 
         public ConfigService()
         {
@@ -24,20 +26,56 @@ namespace TTMG.Services
             _serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
+
+            _dataDirectory = DetermineDataDirectory();
+        }
+
+        private string DetermineDataDirectory()
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            try
+            {
+                var testFile = Path.Combine(baseDir, ".write_test");
+                File.WriteAllText(testFile, "test");
+                File.Delete(testFile);
+                return baseDir;
+            }
+            catch
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var ttmgData = Path.Combine(appData, "TTMG");
+                if (!Directory.Exists(ttmgData))
+                {
+                    Directory.CreateDirectory(ttmgData);
+                }
+                return ttmgData;
+            }
         }
 
         public void LoadConfig()
         {
             var configPath = GetConfigPath();
+            var baseConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts.yaml");
+            
+            string? pathToLoad = null;
             if (File.Exists(configPath))
+            {
+                pathToLoad = configPath;
+            }
+            else if (File.Exists(baseConfigPath))
+            {
+                pathToLoad = baseConfigPath;
+            }
+
+            if (pathToLoad != null)
             {
                 try
                 {
-                    _config = _deserializer.Deserialize<AppConfig>(File.ReadAllText(configPath));
+                    _config = _deserializer.Deserialize<AppConfig>(File.ReadAllText(pathToLoad));
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error loading config: {ex.Message}");
+                    AnsiConsole.MarkupLine($"[red]Error loading config:[/] {ex.Message}");
                 }
 
                 // Ensure system commands exist in the loaded config
@@ -69,15 +107,7 @@ namespace TTMG.Services
 
                 if (updated)
                 {
-                    try
-                    {
-                        var yaml = _serializer.Serialize(_config);
-                        File.WriteAllText(configPath, yaml, Encoding.UTF8);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error saving updated config: {ex.Message}");
-                    }
+                    SaveConfig();
                 }
             }
             else
@@ -129,14 +159,21 @@ namespace TTMG.Services
 
         public void SaveConfig()
         {
-            var configPath = GetConfigPath();
-            var yaml = _serializer.Serialize(_config);
-            File.WriteAllText(configPath, yaml, Encoding.UTF8);
+            try
+            {
+                var configPath = GetConfigPath();
+                var yaml = _serializer.Serialize(_config);
+                File.WriteAllText(configPath, yaml, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Error saving config:[/] {ex.Message}");
+            }
         }
 
         private string GetConfigPath()
         {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts.yaml");
+            return Path.Combine(_dataDirectory, "scripts.yaml");
         }
     }
 }

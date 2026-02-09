@@ -22,6 +22,7 @@ namespace TTMG
                     services.AddSingleton<ISecretService, SecretService>();
                     services.AddSingleton<IScriptService, ScriptService>();
                     services.AddSingleton<IUpdaterService, UpdaterService>();
+                    services.AddSingleton<ICommandService, CommandService>();
                     services.AddSingleton<IAppService, AppService>();
                 });
     }

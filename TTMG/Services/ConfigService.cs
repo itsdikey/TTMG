@@ -10,13 +10,14 @@ namespace TTMG.Services
     {
         private readonly IDeserializer _deserializer;
         private readonly ISerializer _serializer;
+        private readonly ICommandService _commandService;
         private AppConfig _config = new();
         private readonly string _dataDirectory;
 
         public AppConfig Config => _config;
         public string DataDirectory => _dataDirectory;
 
-        public ConfigService()
+        public ConfigService(ICommandService commandService)
         {
             _deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -28,6 +29,7 @@ namespace TTMG.Services
                 .Build();
 
             _dataDirectory = DetermineDataDirectory();
+            _commandService=commandService;
         }
 
         private string DetermineDataDirectory()
@@ -72,81 +74,12 @@ namespace TTMG.Services
                 try
                 {
                     _config = _deserializer.Deserialize<AppConfig>(File.ReadAllText(pathToLoad));
+
+                    EnsureSystemCommandsExist();
                 }
                 catch (Exception ex)
                 {
                     AnsiConsole.MarkupLine($"[red]Error loading config:[/] {ex.Message}");
-                }
-
-                // Ensure system commands exist in the loaded config
-                bool updated = false;
-                if (_config.Commands == null)
-                {
-                    _config.Commands = new List<CommandEntry>();
-                    updated = true;
-                }
-
-                var systemCommands = new List<CommandEntry>
-                {
-                    new () { Code = ":create", Action = "create_script" },
-                    new () { Code = ":update", Action = "check_updates" },
-                    new () { Code = ":version", Action = "print_version" },
-                    new () { Code = ":secret", Action = "manage_secrets" },
-                    new () { Code = ":qq", Action = "exit" },
-                    new () { Code = ":wq", Action = "exit" }
-                };
-
-                foreach (var sys in systemCommands)
-                {
-                    if (!_config.Commands.Any(c => string.Equals(c.Code, sys.Code, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        _config.Commands.Add(sys);
-                        updated = true;
-                    }
-                }
-
-                if (updated)
-                {
-                    SaveConfig();
-                }
-
-                // Ensure system commands exist in the loaded config
-                bool updated = false;
-                if (_config.Commands == null)
-                {
-                    _config.Commands = new List<CommandEntry>();
-                    updated = true;
-                }
-
-                var systemCommands = new List<CommandEntry>
-                {
-                    new () { Code = ":create", Action = "create_script" },
-                    new () { Code = ":update", Action = "check_updates" },
-                    new () { Code = ":version", Action = "print_version" },
-                    new () { Code = ":qq", Action = "exit" },
-                    new () { Code = ":wq", Action = "exit" }
-                };
-
-                foreach (var sys in systemCommands)
-                {
-                    if (!_config.Commands.Any(c => string.Equals(c.Code, sys.Code, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        _config.Commands.Add(sys);
-                        updated = true;
-                    }
-                }
-
-                if (updated)
-                {
-                    try
-                    {
-                        var yaml = _serializer.Serialize(_config);
-                        File.WriteAllText(configPath, yaml, Encoding.UTF8);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error saving updated config: {ex.Message}");
-                    }
                 }
             }
             else
@@ -155,10 +88,37 @@ namespace TTMG.Services
             }
         }
 
+        private void EnsureSystemCommandsExist()
+        {
+            if (_config==null)
+            { 
+                return; 
+            }
+
+            var existingCommandNames = _config.Commands.Select(c => c.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            bool isConfigModified = false;
+
+            foreach (var sysCmd in _commandService.SystemCommands)
+            {
+                if (!existingCommandNames.Contains(sysCmd.Code))
+                {
+                    _config.Commands.Add(sysCmd);
+                    isConfigModified = true;
+                }
+            }
+
+            if(isConfigModified)
+            {
+                SaveConfig();
+            }
+        }
+
         public void EnsureDefaultConfig()
         {
             var configPath = GetConfigPath();
-            if (File.Exists(configPath)) return;
+            if (File.Exists(configPath))
+                return;
 
             string defaultEditor = "notepad";
             string defaultShell = "cmd";
@@ -182,15 +142,7 @@ namespace TTMG.Services
                 EditorArgs = "{file}",
                 UserScriptsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TTMG-Scripts"),
                 IMakeNoMistakes = false,
-                Commands = new List<CommandEntry>
-                {
-                    new () { Code = ":create", Action = "create_script" },
-                    new () { Code = ":update", Action = "check_updates" },
-                    new () { Code = ":version", Action = "print_version" },
-                    new () { Code = ":secret", Action = "manage_secrets" },
-                    new () { Code = ":qq", Action = "exit" },
-                    new () { Code = ":wq", Action = "exit" }
-                }
+                Commands = _commandService.SystemCommands
             };
 
             SaveConfig();

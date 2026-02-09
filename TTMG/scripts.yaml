@@ -3,7 +3,7 @@ iMakeNoMistakes: false
 suppressUpdateChecks: false
 updateDirectory: "update"
 versionUrl: "https://raw.githubusercontent.com/user/TTMG/main/version.json"
-currentVersion: "1.1.0"
+currentVersion: "1.2.1"
 defaultShell: "cmd" # Options: cmd, powershell, pwsh, bash, zsh, sh
 
 scripts:

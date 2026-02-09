@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/itsdikey/TTMG/compare/v1.2.2...v1.3.0) (2026-02-09)
+
+
+### Features
+
+* command refactor ([19ef293](https://github.com/itsdikey/TTMG/commit/19ef29305629c384cc39426dfa7ad6bfeeabb2c9))
+
 ## [1.2.2](https://github.com/itsdikey/TTMG/compare/v1.2.1...v1.2.2) (2026-02-09)
 
 

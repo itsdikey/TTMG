@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/itsdikey/TTMG/compare/v1.2.1...v1.2.2) (2026-02-09)
+
+
+### Bug Fixes
+
+* less-privelege ([#12](https://github.com/itsdikey/TTMG/issues/12)) ([53e53a2](https://github.com/itsdikey/TTMG/commit/53e53a2c9cce110d752d41ea459e9e2b1cd075ea))
+
 ## [1.2.1](https://github.com/itsdikey/TTMG/compare/v1.2.0...v1.2.1) (2026-02-09)
 
 

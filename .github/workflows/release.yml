@@ -72,17 +72,28 @@ jobs:
     if: ${{ needs.release-please.outputs.release_created }}
     runs-on: ubuntu-latest
     steps:
+      - name: Generate GitHub App Token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           ref: master
+          token: ${{ steps.generate_token.outputs.token }}
+
       - name: Create version.json
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
           TAG="${{ needs.release-please.outputs.tag_name }}"
+          
           BODY=$(cat <<'EOF'
           ${{ needs.release-please.outputs.body }}
           EOF
           )
+          
           ESCAPED_BODY=$(echo "$BODY" | jq -aRs .)
           
           cat <<EOF > version.json
@@ -92,17 +103,20 @@ jobs:
             "ReleaseNotes": $ESCAPED_BODY
           }
           EOF
+
       - name: Update scripts.yaml version
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
           sed -i "s/currentVersion: \".*\"/currentVersion: \"$VERSION\"/" TTMG/scripts.yaml
+
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add version.json TTMG/scripts.yaml
           git commit -m "chore: update version files to ${{ needs.release-please.outputs.version }} [skip ci]"
-          git push
+          git push origin master
+
       - name: Upload version.json to Release
         uses: softprops/action-gh-release@v2
         with:

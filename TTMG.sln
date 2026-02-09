@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		version.txt = version.txt
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TTMG.ConsoleEditor", "TTMG.ConsoleEditor\TTMG.ConsoleEditor.csproj", "{3F461483-8C40-4381-8792-C345D6BB410B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{A56123C0-346B-483E-B0E6-F05B0EFB2D47}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A56123C0-346B-483E-B0E6-F05B0EFB2D47}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A56123C0-346B-483E-B0E6-F05B0EFB2D47}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F461483-8C40-4381-8792-C345D6BB410B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F461483-8C40-4381-8792-C345D6BB410B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F461483-8C40-4381-8792-C345D6BB410B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F461483-8C40-4381-8792-C345D6BB410B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

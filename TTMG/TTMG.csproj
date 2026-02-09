@@ -29,4 +29,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TTMG.ConsoleEditor\TTMG.ConsoleEditor.csproj" />
+  </ItemGroup>
+
 </Project>

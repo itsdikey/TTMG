@@ -265,6 +265,7 @@ namespace TTMG.Services
                     "-- run_shell(command, detached_bool)             | Runs a command in the default shell.",
                     "-- get_secret(name) -> string?                   | Retrieves an encrypted secret from the store.",
                     "-- print(text)                                   | Prints text to the console (supports markup).",
+                    "-- require('std')                                | Includes the standard libraries",
                     "",
                     $"print('Hello from {name}!')"
                 };

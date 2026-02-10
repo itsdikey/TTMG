@@ -5,7 +5,7 @@ A keyboard-driven script manager and terminal runner using Lua and Spectre.Conso
 ## Installation & Setup
 Choose the command for your platform to download the latest version and add it to your system PATH.
 
-### Windows
+### Windows (Administrator)
 Open PowerShell as Administrator and run:
 
 ```powershell
@@ -18,6 +18,22 @@ $oldPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
 if ($oldPath -notlike "*TTMG*") {
     [Environment]::SetEnvironmentVariable("Path", "$oldPath;$env:ProgramFiles\TTMG", "Machine")
     $env:Path += ";$env:ProgramFiles\TTMG"
+}
+```
+
+### Windows (Non-Administrator / Per-user)
+If you do not have Administrator privileges, install to a folder in your user profile (no elevation required). Open a normal PowerShell window and run:
+
+```powershell
+# Create folder and download
+New-Item -ItemType Directory -Force -Path "$env:LocalAppData\Programs\TTMG"
+Invoke-WebRequest -Uri "https://github.com/itsdikey/TTMG/releases/latest/download/ttmg-windows.exe" -OutFile "$env:LocalAppData\Programs\TTMG\ttmg.exe"
+
+# Add to User PATH permanently
+$oldPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($oldPath -notlike "*TTMG*") {
+    [Environment]::SetEnvironmentVariable("Path", "$oldPath;$env:LocalAppData\Programs\TTMG", "User")
+    $env:Path += ";$env:LocalAppData\Programs\TTMG"
 }
 ```
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/itsdikey/TTMG/compare/v1.3.1...v1.4.0) (2026-02-10)
+
+
+### Features
+
+* config command, updater fix, std support ([#19](https://github.com/itsdikey/TTMG/issues/19)) ([d91c0d1](https://github.com/itsdikey/TTMG/commit/d91c0d16c04de7d08226df309f1e05e267b4607d))
+
 ## [1.3.1](https://github.com/itsdikey/TTMG/compare/v1.3.0...v1.3.1) (2026-02-10)
 
 

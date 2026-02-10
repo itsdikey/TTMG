@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/itsdikey/TTMG/compare/v1.3.0...v1.3.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* local scripts & allignment ([#16](https://github.com/itsdikey/TTMG/issues/16)) ([140bf26](https://github.com/itsdikey/TTMG/commit/140bf265d7f87b5bc573fd18b30608dfe8ca8972))
+
 ## [1.3.0](https://github.com/itsdikey/TTMG/compare/v1.2.2...v1.3.0) (2026-02-09)
 
 

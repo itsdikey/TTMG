@@ -1,0 +1,11 @@
+#!/bin/sh
+PID={{Pid}}
+while kill -0 $PID 2>/dev/null; do
+    sleep 0.2
+done
+
+cp "{{SourceFile}}" "{{DestinationFile}}"
+
+chmod +x "{{DestinationFile}}"
+"{{DestinationFile}}" &
+rm "$0"

@@ -4,6 +4,8 @@ namespace TTMG.Interfaces
     {
         AppConfig Config { get; }
         string DataDirectory { get; }
+        string? LoadedConfig { get; }
+
         void LoadConfig();
         void SaveConfig();
         void EnsureDefaultConfig();

@@ -16,6 +16,7 @@ namespace TTMG.Services
 
         public AppConfig Config => _config;
         public string DataDirectory => _dataDirectory;
+        public string? LoadedConfig { get; private set; }
 
         public ConfigService(ICommandService commandService)
         {
@@ -74,6 +75,8 @@ namespace TTMG.Services
                 try
                 {
                     _config = _deserializer.Deserialize<AppConfig>(File.ReadAllText(pathToLoad));
+
+                    LoadedConfig = pathToLoad;
 
                     EnsureSystemCommandsExist();
                 }

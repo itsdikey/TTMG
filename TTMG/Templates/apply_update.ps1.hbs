@@ -1,0 +1,13 @@
+$pidToWait = {{Pid}}
+$sourceFile = "{{SourceFile}}"
+$destinationFile = "{{DestinationFile}}"
+$exeToStart = "{{ExeToStart}}"
+
+while (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue) {
+    Start-Sleep -Milliseconds 200
+}
+
+Copy-Item -Path $sourceFile -Destination $destinationFile -Force
+
+Start-Process -FilePath $exeToStart
+Remove-Item -Path $PSCommandPath

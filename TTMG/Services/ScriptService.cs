@@ -1,5 +1,7 @@
 using Lua;
+using Lua.Standard;
 using Spectre.Console;
+using System.Text.RegularExpressions;
 using TTMG.Interfaces;
 
 namespace TTMG.Services
@@ -135,7 +137,10 @@ namespace TTMG.Services
             { AnsiConsole.MarkupLine($"[red]File not found:[/] {path}"); return; }
             var scriptContent = await File.ReadAllTextAsync(path);
 
-            bool requiresSecret = await RunEphemeral(scriptContent);
+            var scriptResult = await RunEphemeral(scriptContent);
+
+            bool requiresSecret = scriptResult.RequiresSecret;
+            bool requiresStandardLibrary = scriptResult.RequiresStd;
 
             string? sharedPassword = null;
             if (requiresSecret)
@@ -148,37 +153,72 @@ namespace TTMG.Services
             state.Environment["env"] = LuaValue.FromObject(env);
             state.Environment["pass"] = sharedPassword != null ? LuaValue.FromObject(sharedPassword) : LuaValue.Nil;
 
+            if (requiresStandardLibrary)
+            {
+                state.OpenStandardLibraries();
+                scriptContent = scriptContent.Replace("require('std')", "");
+            }
+
             string wrapper = @"
                 prompt_input = function(t) return env:prompt_input(t) end
                 prompt_select = function(t, o) return env:prompt_select(t, o) end
                 run_process = function(c, a, d) env:run_process(c, a, d) end
                 run_shell = function(c, d) env:run_shell(c, d) end
                 get_secret = function(n) return env:get_secret(n, pass) end
-                print = function(t) env:print(t) end";
+                print = function(t) env:print(t) end
+            ";
+
             await state.DoStringAsync(wrapper);
 
             try
-            { await state.DoStringAsync(scriptContent); }
+            { 
+                await state.DoStringAsync(scriptContent); 
+            }
             catch (Exception ex) { AnsiConsole.WriteException(ex); }
         }
 
-        private static async Task<bool> RunEphemeral(string scriptContent)
+        public class ScriptAnalysis
         {
-            bool requiresSecret = false;
+            public bool RequiresSecret { get; set; }
+            public bool RequiresStd { get; set; }
+        }
+
+        private static async Task<ScriptAnalysis> RunEphemeral(string scriptContent)
+        {
+            var analysis = new ScriptAnalysis();
+
             {
                 using var dryRunState = LuaState.Create();
-                dryRunState.Environment["requires_secret"] = false;
 
+                // 1. Initialize our flags in the Lua environment
+                dryRunState.Environment["flag_secret"] = false;
+                dryRunState.Environment["flag_std"] = false;
 
+                // 2. Define the wrapper with mocks
                 string dryRunWrapper = @"
                     prompt_input = function(t) return '' end
                     prompt_select = function(t, o) return o[1] or '' end
                     run_process = function(c, a, d) end
                     run_shell = function(c, d) end
-                    get_secret = function(n) requires_secret = true; error('SECRET_DETECTED') end
-                    print = function(t) end";
+                    print = function(t) end
+
+                    get_secret = function(n) 
+                        flag_secret = true
+                        error('SECRET_DETECTED') 
+                    end
+
+                    require = function(module_name)
+                        if module_name == 'std' then
+                            flag_std = true
+                            -- Return a dummy table so code like 'std.print()' doesn't crash
+                            return {} 
+                        end
+                        return {} 
+                    end
+                ";
 
                 await dryRunState.DoStringAsync(dryRunWrapper);
+
                 try
                 {
                     var dryRunTask = dryRunState.DoStringAsync(scriptContent).AsTask();
@@ -191,14 +231,14 @@ namespace TTMG.Services
                 catch (LuaRuntimeException ex) when (ex.Message.Contains("SECRET_DETECTED"))
                 {
                 }
-                catch
+                catch (Exception)
                 {
                 }
-
-                requiresSecret = dryRunState.Environment["requires_secret"].ToBoolean();
+                analysis.RequiresSecret = dryRunState.Environment["flag_secret"].ToBoolean();
+                analysis.RequiresStd = dryRunState.Environment["flag_std"].ToBoolean();
             }
 
-            return requiresSecret;
+            return analysis;
         }
 
         public async Task CreateNewScript(string name)

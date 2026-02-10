@@ -47,15 +47,17 @@ namespace TTMG.Services
 
             _configService.LoadConfig();
 
+            AppConfig config = _configService.Config;
+
+            if (!config.SuppressUpdateChecks)
+            { await _updaterService.CheckForUpdates(); }
+
             while (true)
             {
                 AnsiConsole.Clear();
                 AnsiConsole.Write(new FigletText("TTMG").LeftJustified().Color(Color.Cyan1));
 
-                AppConfig config = _configService.Config;
-
-                if (!config.SuppressUpdateChecks)
-                { await _updaterService.CheckForUpdates(); }
+                config = _configService.Config;
 
                 List<ScriptMetadata> discoveredScripts = _scriptService.DiscoverScripts();
 

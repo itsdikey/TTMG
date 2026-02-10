@@ -1,7 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Reflection;
 using Spectre.Console;
 using TTMG.Interfaces;
+using HandlebarsDotNet;
 
 namespace TTMG.Services
 {
@@ -9,10 +13,12 @@ namespace TTMG.Services
     {
         private readonly IConfigService _configService;
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        private static readonly HttpClient _downloaindgHttpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
 
         static UpdaterService()
         {
             _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("TTMG", "1.0"));
+            _downloaindgHttpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("TTMG", "1.0"));
         }
 
         public UpdaterService(IConfigService configService)
@@ -44,7 +50,7 @@ namespace TTMG.Services
                 if (remoteInfo != null && IsNewer(remoteInfo.Version, config.CurrentVersion))
                 {
                     AnsiConsole.MarkupLine($"[bold green]A new version is available: {remoteInfo.Version}[/]");
-                    AnsiConsole.MarkupLine($"[grey]Notes: {remoteInfo.ReleaseNotes}[/]");
+                    AnsiConsole.MarkupLineInterpolated($"[grey]Notes: {remoteInfo.ReleaseNotes}[/]");
                     
                     if (AnsiConsole.Confirm("Would you like to download the update?"))
                     {
@@ -84,17 +90,124 @@ namespace TTMG.Services
 
                 await AnsiConsole.Status().StartAsync($"Downloading {fileName}...", async ctx =>
                 {
-                    var data = await _httpClient.GetByteArrayAsync(info.DownloadUrl);
+                    var data = await _downloaindgHttpClient.GetByteArrayAsync(info.DownloadUrl);
                     await File.WriteAllBytesAsync(destination, data);
                 });
 
                 AnsiConsole.MarkupLine($"[green]Update downloaded to:[/] [blue]{destination}[/]");
-                AnsiConsole.MarkupLine("[yellow]Please restart the application to apply the update.[/]");
+                
+                if (AnsiConsole.Confirm("Would you like to apply the update and restart now?"))
+                {
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        ApplyUpdateAndExitWindows(destination);
+                    }
+                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        ApplyUpdateAndExitUnix(destination);
+                    }
+                }
             }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine($"[red]Download failed:[/] {ex.Message}");
+                AnsiConsole.Confirm("");
             }
+        }
+
+        private string GetTemplateFromResource(string resourceName)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var fullResourceName = $"TTMG.Templates.{resourceName}";
+            using var stream = assembly.GetManifestResourceStream(fullResourceName);
+            if (stream == null) throw new Exception($"Template {fullResourceName} not found in assembly.");
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
+        private void ApplyUpdateAndExitUnix(string downloadedFile)
+        {
+            var currentProcess = Process.GetCurrentProcess();
+            var appDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('/');
+            var exePath = currentProcess.MainModule?.FileName ?? Path.Combine(appDir, "TTMG");
+
+            string source;
+            try {
+                source = GetTemplateFromResource("apply_update.sh.hbs");
+            } catch (Exception ex) {
+                AnsiConsole.MarkupLine($"[red]Error reading update template:[/] {ex.Message}");
+                return;
+            }
+
+            var template = Handlebars.Compile(source);
+
+            var data = new
+            {
+                Pid = currentProcess.Id,
+                SourceFile = downloadedFile,
+                DestinationFile = exePath,
+                ExeToStart = exePath,
+                AppDir = appDir
+            };
+
+            var scriptPath = Path.Combine(appDir, "apply_update.sh");
+            File.WriteAllText(scriptPath, template(data).Replace("\r\n", "\n"));
+
+            try
+            {
+                Process.Start("chmod", $"+x \"{scriptPath}\"").WaitForExit();
+            }
+            catch { }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "/bin/sh",
+                Arguments = $"\"{scriptPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+
+            Environment.Exit(0);
+        }
+
+        private void ApplyUpdateAndExitWindows(string downloadedFile)
+        {
+            var currentProcess = Process.GetCurrentProcess();
+            var appDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+            var exePath = currentProcess.MainModule?.FileName ?? Path.Combine(appDir, "TTMG.exe");
+
+            string source;
+            try {
+                source = GetTemplateFromResource("apply_update.ps1.hbs");
+            } catch (Exception ex) {
+                AnsiConsole.MarkupLine($"[red]Error reading update template:[/] {ex.Message}");
+                return;
+            }
+
+            var template = Handlebars.Compile(source);
+
+            var data = new
+            {
+                Pid = currentProcess.Id,
+                SourceFile = downloadedFile,
+                DestinationFile = exePath,
+                ExeToStart = exePath,
+                AppDir = appDir
+            };
+
+            var scriptPath = Path.Combine(appDir, "apply_update.ps1");
+            File.WriteAllText(scriptPath, template(data));
+            
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\"",
+                UseShellExecute = true,
+                CreateNoWindow = true
+            };
+            
+            Process.Start(psi);
+            Environment.Exit(0);
         }
 
         public async Task InstallScripts(string repoName, string[] scriptNames)

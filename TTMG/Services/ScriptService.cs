@@ -37,9 +37,10 @@ namespace TTMG.Services
                 }
             }
 
-            if (!string.IsNullOrEmpty(config.UserScriptsDirectory))
+            var userScriptsDir = GetUserScriptsDirectory();
+            if (Directory.Exists(userScriptsDir))
             {
-                var userScripts = Discover(Environment.ExpandEnvironmentVariables(config.UserScriptsDirectory), config);
+                var userScripts = Discover(userScriptsDir, config);
                 foreach (var us in userScripts)
                 {
                     if (!discoveredScripts.Any(ds => ds.FullPath == us.FullPath))
@@ -49,6 +50,14 @@ namespace TTMG.Services
                 }
             }
             return discoveredScripts;
+        }
+
+        private string GetUserScriptsDirectory()
+        {
+            var config = _configService.Config;
+            return !string.IsNullOrEmpty(config.UserScriptsDirectory)
+                ? Environment.ExpandEnvironmentVariables(config.UserScriptsDirectory)
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TTMG-Scripts");
         }
 
         private List<ScriptMetadata> Discover(string rootDir, AppConfig config)
@@ -78,7 +87,7 @@ namespace TTMG.Services
                     displayName = Path.GetFileNameWithoutExtension(fileName);
                 }
 
-                scripts.Add(new ScriptMetadata { DisplayName = displayName, FullPath = file });
+                scripts.Add(new ScriptMetadata { DisplayName = displayName.TrimStart('.'), FullPath = file });
             }
 
             // Recursive Disambiguation (Prepending folders)
@@ -103,7 +112,7 @@ namespace TTMG.Services
                         if (pathParts.Length > levelsUsed + 1)
                         {
                             var parentDir = pathParts[pathParts.Length - 2 - levelsUsed];
-                            item.DisplayName = $"{parentDir}-{item.DisplayName}";
+                            item.DisplayName = $"{parentDir}-{item.DisplayName}".TrimStart('.');
                             changed = true;
                         }
                     }
@@ -196,10 +205,7 @@ namespace TTMG.Services
         {
             if (string.IsNullOrWhiteSpace(name)) return;
             
-            var config = _configService.Config;
-            var baseDir = !string.IsNullOrEmpty(config.UserScriptsDirectory) 
-                ? Environment.ExpandEnvironmentVariables(config.UserScriptsDirectory) 
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TTMG-Scripts");
+            var baseDir = GetUserScriptsDirectory();
 
             if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
 

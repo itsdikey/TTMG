@@ -68,7 +68,6 @@ namespace TTMG.Services
                 {
                     ScriptMetadata meta = new() { DisplayName = cmd.Code, Index = idx++, IsCommand = true };
                     allItems.Add(meta);
-                    // Commands are handled via _commandService.TryExecuteCommand
                 }
 
                 idx=1;
@@ -268,12 +267,14 @@ namespace TTMG.Services
 
                     AnsiConsole.Write(new Rule());
 
+                    var maxIndexWidth = filtered.Count > 0 ? filtered.Max(m => m.Index).ToString().Length : 0;
                     var len = filtered.Count > 15 ? 15 : filtered.Count;
 
                     for (int i = 0; i < len; i++)
                     {
                         ScriptMetadata m = filtered[i];
-                        string text = $"{m.Index}. {m.DisplayName}";
+                        string paddedIndex = m.Index.ToString().PadLeft(maxIndexWidth);
+                        string text = $"{paddedIndex}. {m.DisplayName}";
                         if (i == _selectedIndex)
                         {
                             AnsiConsole.MarkupLine($"[black on white] > {text} [/]");

@@ -1,5 +1,5 @@
 {
-  "Version": "1.2.1",
-  "DownloadUrl": "https://github.com/itsdikey/TTMG/releases/download/v1.2.1/ttmg-windows.exe",
-  "ReleaseNotes": "## [1.2.1](https://github.com/itsdikey/TTMG/compare/v1.2.0...v1.2.1) (2026-02-09)\n\n\n### Bug Fixes\n\n* fixed yaml file ([#10](https://github.com/itsdikey/TTMG/issues/10)) ([07d9927](https://github.com/itsdikey/TTMG/commit/07d9927be636015b2af935b371104f0ab8770dd9))\n"
+  "Version": "1.3.0",
+  "DownloadUrl": "https://github.com/itsdikey/TTMG/releases/download/v1.3.0/ttmg-windows.exe",
+  "ReleaseNotes": "## [1.3.0](https://github.com/itsdikey/TTMG/compare/v1.2.2...v1.3.0) (2026-02-09)\n\n\n### Features\n\n* command refactor ([19ef293](https://github.com/itsdikey/TTMG/commit/19ef29305629c384cc39426dfa7ad6bfeeabb2c9))\n"
 }

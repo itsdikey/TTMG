@@ -122,11 +122,14 @@ namespace TTMG.Services
 
         public async Task RunScript(string path)
         {
-            if (!File.Exists(path)) { AnsiConsole.MarkupLine($"[red]File not found:[/] {path}"); return; }
+            if (!File.Exists(path))
+            { AnsiConsole.MarkupLine($"[red]File not found:[/] {path}"); return; }
             var scriptContent = await File.ReadAllTextAsync(path);
-            
+
+            bool requiresSecret = await RunEphemeral(scriptContent);
+
             string? sharedPassword = null;
-            if (scriptContent.Contains("get_secret"))
+            if (requiresSecret)
             {
                 sharedPassword = AnsiConsole.Prompt(new TextPrompt<string>("Script requires secrets. Enter password to unlock store:").Secret());
             }
@@ -144,9 +147,49 @@ namespace TTMG.Services
                 get_secret = function(n) return env:get_secret(n, pass) end
                 print = function(t) env:print(t) end";
             await state.DoStringAsync(wrapper);
-            
-            try { await state.DoStringAsync(scriptContent); }
+
+            try
+            { await state.DoStringAsync(scriptContent); }
             catch (Exception ex) { AnsiConsole.WriteException(ex); }
+        }
+
+        private static async Task<bool> RunEphemeral(string scriptContent)
+        {
+            bool requiresSecret = false;
+            {
+                using var dryRunState = LuaState.Create();
+                dryRunState.Environment["requires_secret"] = false;
+
+
+                string dryRunWrapper = @"
+                    prompt_input = function(t) return '' end
+                    prompt_select = function(t, o) return o[1] or '' end
+                    run_process = function(c, a, d) end
+                    run_shell = function(c, d) end
+                    get_secret = function(n) requires_secret = true; error('SECRET_DETECTED') end
+                    print = function(t) end";
+
+                await dryRunState.DoStringAsync(dryRunWrapper);
+                try
+                {
+                    var dryRunTask = dryRunState.DoStringAsync(scriptContent).AsTask();
+
+                    if (await Task.WhenAny(dryRunTask, Task.Delay(1000)) == dryRunTask)
+                    {
+                        await dryRunTask;
+                    }
+                }
+                catch (LuaRuntimeException ex) when (ex.Message.Contains("SECRET_DETECTED"))
+                {
+                }
+                catch
+                {
+                }
+
+                requiresSecret = dryRunState.Environment["requires_secret"].ToBoolean();
+            }
+
+            return requiresSecret;
         }
 
         public async Task CreateNewScript(string name)

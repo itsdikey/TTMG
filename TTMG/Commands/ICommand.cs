@@ -16,5 +16,6 @@ namespace TTMG.Commands
     public interface ICommand
     {
         Task Execute(string[] args);
+        IEnumerable<string> GetSuggestions(string[] args) => Enumerable.Empty<string>();
     }
 }

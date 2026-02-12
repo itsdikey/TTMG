@@ -48,5 +48,23 @@ namespace TTMG.Commands
             }
             return Task.CompletedTask;
         }
+
+        public IEnumerable<string> GetSuggestions(string[] args)
+        {
+            if (args.Length <= 1)
+            {
+                var subCommands = new[] { "create", "list", "get" };
+                var input = args.Length == 1 ? args[0] : "";
+                return subCommands.Where(s => s.StartsWith(input, StringComparison.OrdinalIgnoreCase));
+            }
+            
+            if (args.Length == 2 && (args[0].Equals("get", StringComparison.OrdinalIgnoreCase) || args[0].Equals("create", StringComparison.OrdinalIgnoreCase)))
+            {
+                var secrets = _secretService.ListSecrets();
+                return secrets.Where(s => s.StartsWith(args[1], StringComparison.OrdinalIgnoreCase));
+            }
+
+            return Enumerable.Empty<string>();
+        }
     }
 }

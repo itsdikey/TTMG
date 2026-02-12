@@ -3,6 +3,7 @@ using Lua.Standard;
 using Spectre.Console;
 using System.Text.RegularExpressions;
 using TTMG.Interfaces;
+using YamlDotNet.Serialization;
 
 namespace TTMG.Services
 {
@@ -10,11 +11,13 @@ namespace TTMG.Services
     {
         private readonly IConfigService _configService;
         private readonly ISecretService _secretService;
+        private readonly IDeserializer _yamlDeserializer;
 
         public ScriptService(IConfigService configService, ISecretService secretService)
         {
             _configService = configService;
             _secretService = secretService;
+            _yamlDeserializer = new DeserializerBuilder().Build();
         }
 
         public List<ScriptMetadata> DiscoverScripts()
@@ -148,8 +151,24 @@ namespace TTMG.Services
                 sharedPassword = AnsiConsole.Prompt(new TextPrompt<string>("Script requires secrets. Enter password to unlock store:").Secret());
             }
 
+            var scriptConfig = new Dictionary<string, string>();
+            var configPath = Path.Combine(Path.GetDirectoryName(path) ?? "", "config.yaml");
+            if (File.Exists(configPath))
+            {
+                try
+                {
+                    var yaml = await File.ReadAllTextAsync(configPath);
+                    var loaded = _yamlDeserializer.Deserialize<Dictionary<string, string>>(yaml);
+                    if (loaded != null) scriptConfig = loaded;
+                }
+                catch (Exception ex)
+                {
+                    AnsiConsole.MarkupLine($"[red]Error loading config.yaml:[/] {ex.Message}");
+                }
+            }
+
             using var state = LuaState.Create();
-            var env = new LuaEnv(_configService.Config, _secretService);
+            var env = new LuaEnv(_configService.Config, _secretService, path, scriptConfig);
             state.Environment["env"] = LuaValue.FromObject(env);
             state.Environment["pass"] = sharedPassword != null ? LuaValue.FromObject(sharedPassword) : LuaValue.Nil;
 
@@ -165,6 +184,7 @@ namespace TTMG.Services
                 run_process = function(c, a, d) env:run_process(c, a, d) end
                 run_shell = function(c, d) env:run_shell(c, d) end
                 get_secret = function(n) return env:get_secret(n, pass) end
+                get_config = function(k) return env:get_config(k) end
                 print = function(t) env:print(t) end
             ";
 
@@ -201,6 +221,7 @@ namespace TTMG.Services
                     run_process = function(c, a, d) end
                     run_shell = function(c, d) end
                     print = function(t) end
+                    get_config = function(k) return '' end
 
                     get_secret = function(n) 
                         flag_secret = true
@@ -264,6 +285,7 @@ namespace TTMG.Services
                     "-- run_process(command, args, detached_bool)     | Runs an external process.",
                     "-- run_shell(command, detached_bool)             | Runs a command in the default shell.",
                     "-- get_secret(name) -> string?                   | Retrieves an encrypted secret from the store.",
+                    "-- get_config(key) -> string                    | Retrieves a value from config.yaml in the script folder.",
                     "-- print(text)                                   | Prints text to the console (supports markup).",
                     "-- require('std')                                | Includes the standard libraries",
                     "",

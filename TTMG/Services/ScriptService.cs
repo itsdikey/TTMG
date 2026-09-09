@@ -3,6 +3,7 @@ using Lua.Standard;
 using Spectre.Console;
 using System.Text.RegularExpressions;
 using TTMG.Interfaces;
+using YamlDotNet.Serialization;
 
 namespace TTMG.Services
 {
@@ -10,11 +11,13 @@ namespace TTMG.Services
     {
         private readonly IConfigService _configService;
         private readonly ISecretService _secretService;
+        private readonly IDeserializer _yamlDeserializer;
 
         public ScriptService(IConfigService configService, ISecretService secretService)
         {
             _configService = configService;
             _secretService = secretService;
+            _yamlDeserializer = new DeserializerBuilder().Build();
         }
 
         public List<ScriptMetadata> DiscoverScripts()
@@ -148,8 +151,24 @@ namespace TTMG.Services
                 sharedPassword = AnsiConsole.Prompt(new TextPrompt<string>("Script requires secrets. Enter password to unlock store:").Secret());
             }
 
+            var scriptConfig = new Dictionary<string, string>();
+            var configPath = Path.Combine(Path.GetDirectoryName(path) ?? "", "config.yaml");
+            if (File.Exists(configPath))
+            {
+                try
+                {
+                    var yaml = await File.ReadAllTextAsync(configPath);
+                    var loaded = _yamlDeserializer.Deserialize<Dictionary<string, string>>(yaml);
+                    if (loaded != null) scriptConfig = loaded;
+                }
+                catch (Exception ex)
+                {
+                    AnsiConsole.MarkupLine($"[red]Error loading config.yaml:[/] {ex.Message}");
+                }
+            }
+
             using var state = LuaState.Create();
-            var env = new LuaEnv(_configService.Config, _secretService);
+            var env = new LuaEnv(_configService.Config, _secretService, path, scriptConfig);
             state.Environment["env"] = LuaValue.FromObject(env);
             state.Environment["pass"] = sharedPassword != null ? LuaValue.FromObject(sharedPassword) : LuaValue.Nil;
 
@@ -160,11 +179,12 @@ namespace TTMG.Services
             }
 
             string wrapper = @"
-                prompt_input = function(t) return env:prompt_input(t) end
+                prompt_input = function(t, d) return env:prompt_input(t, d) end
                 prompt_select = function(t, o) return env:prompt_select(t, o) end
                 run_process = function(c, a, d) env:run_process(c, a, d) end
                 run_shell = function(c, d) env:run_shell(c, d) end
                 get_secret = function(n) return env:get_secret(n, pass) end
+                get_config = function(k) return env:get_config(k) end
                 print = function(t) env:print(t) end
             ";
 
@@ -196,11 +216,12 @@ namespace TTMG.Services
 
                 // 2. Define the wrapper with mocks
                 string dryRunWrapper = @"
-                    prompt_input = function(t) return '' end
+                    prompt_input = function(t, d) return d or '' end
                     prompt_select = function(t, o) return o[1] or '' end
                     run_process = function(c, a, d) end
                     run_shell = function(c, d) end
                     print = function(t) end
+                    get_config = function(k) return '' end
 
                     get_secret = function(n) 
                         flag_secret = true
@@ -259,11 +280,12 @@ namespace TTMG.Services
                 {
                     $"-- TTMG Script: {name.ToUpper()}",
                     "-- Available methods:",
-                    "-- prompt_input(title) -> string                 | Prompts the user for text input.",
+                    "-- prompt_input(title[, default]) -> string       | Prompts the user for text input. Pressing Enter returns default when given.",
                     "-- prompt_select(title, options_table) -> string | Shows a selection menu to the user.",
                     "-- run_process(command, args, detached_bool)     | Runs an external process.",
                     "-- run_shell(command, detached_bool)             | Runs a command in the default shell.",
                     "-- get_secret(name) -> string?                   | Retrieves an encrypted secret from the store.",
+                    "-- get_config(key) -> string                    | Retrieves a value from config.yaml in the script folder.",
                     "-- print(text)                                   | Prints text to the console (supports markup).",
                     "-- require('std')                                | Includes the standard libraries",
                     "",
@@ -289,6 +311,61 @@ namespace TTMG.Services
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine($"[red]Failed to open editor:[/] {ex.Message}");
+            }
+        }
+
+        public ScriptMetadata? ResolveScript(string nameOrAlias)
+        {
+            if (string.IsNullOrWhiteSpace(nameOrAlias))
+            {
+                AnsiConsole.MarkupLine("[red]No script name provided.[/]");
+                return null;
+            }
+
+            var needle = nameOrAlias.Trim();
+            var matches = DiscoverScripts().Where(m =>
+                    string.Equals(m.DisplayName, needle, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(m.Alias) && string.Equals(m.Alias, needle, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            if (matches.Count == 0)
+            {
+                AnsiConsole.MarkupLine($"[red]No script found matching[/] [yellow]'{needle}'[/].");
+                AnsiConsole.MarkupLine("[grey]Scripts are matched by display name or alias. See the main menu for available scripts.[/]");
+                return null;
+            }
+
+            if (matches.Count > 1)
+            {
+                AnsiConsole.MarkupLine($"[red]'{needle}' is ambiguous - it matches multiple scripts:[/]");
+                foreach (var m in matches)
+                {
+                    var aliasPart = string.IsNullOrEmpty(m.Alias) ? "" : $" (alias: {m.Alias})";
+                    AnsiConsole.MarkupLine($"  [cyan]{m.DisplayName}[/]{aliasPart} [grey]{m.FullPath}[/]");
+                }
+                AnsiConsole.MarkupLine("[grey]Use a more specific display name or alias.[/]");
+                return null;
+            }
+
+            return matches[0];
+        }
+
+        public void DeleteScript(string fullPath)
+        {
+            try
+            {
+                if (!File.Exists(fullPath))
+                {
+                    AnsiConsole.MarkupLine($"[red]Script file not found:[/] {fullPath}");
+                    return;
+                }
+
+                File.Delete(fullPath);
+                AnsiConsole.MarkupLine($"[green]Deleted script:[/] {fullPath}");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Failed to delete script:[/] {ex.Message}");
             }
         }
 

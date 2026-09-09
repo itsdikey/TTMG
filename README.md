@@ -98,6 +98,10 @@ Switch between modes using the TAB key.
 *   Type `:qq` or `:wq` to exit.
 *   Type `:update` to manually check for application updates.
 *   Type `:install <repo-shortname> <script-name>` to download scripts from a repository.
+*   Type `:create <name>` to create a new local script and open it in your editor.
+*   Type `:edit <name-or-alias>` to open an existing script in your configured editor.
+*   Type `:delete <name-or-alias>` to delete a script file (after a `y/N` confirmation).
+*   Script names for `:edit`/`:delete` are matched against discovered scripts by display name or alias (case-insensitive); the name is prompted when omitted, and no/ambiguous matches are rejected.
 
 ### Menu Mode
 *   Search/Filter: Type characters to filter the visible list.
@@ -109,7 +113,7 @@ Switch between modes using the TAB key.
 Scripts have access to the `env` object and global helper functions.
 
 *   `print(text)`: Prints text to the console. Supports Spectre.Console markup (e.g., `[red]text[/]`).
-*   `prompt_input(title)`: Displays a text input prompt and returns the string.
+*   `prompt_input(title[, default])`: Displays a text input prompt and returns the string. If `default` is supplied, it is shown as the default value and pressing Enter returns it.
 *   `prompt_select(title, options_table)`: Displays a selection menu and returns the chosen string.
 *   `run_process(command, args, detached)`: Executes a specific process with arguments.
 *   `run_shell(command, detached)`: Executes a command using the `defaultShell` configured in yaml.

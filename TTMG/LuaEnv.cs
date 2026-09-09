@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Lua;
 using Spectre.Console;
 
@@ -9,18 +10,40 @@ namespace TTMG
     {
         private readonly AppConfig _config;
         private readonly Interfaces.ISecretService _secretService;
+        private readonly string _currentScriptPath;
+        private readonly Dictionary<string, string> _scriptConfig;
 
-        public LuaEnv(AppConfig config, Interfaces.ISecretService secretService)
+        public LuaEnv(AppConfig config, Interfaces.ISecretService secretService, string currentScriptPath, Dictionary<string, string> scriptConfig)
         {
             _config = config;
             _secretService = secretService;
+            _currentScriptPath = currentScriptPath;
+            _scriptConfig = scriptConfig;
         }
 
         [LuaMember]
         public string? get_secret(string name, string? password = null) => _secretService.GetSecret(name, password);
 
         [LuaMember]
-        public string prompt_input(string title) => AnsiConsole.Ask<string>(title);
+        public string get_config(string key)
+        {
+            if (_scriptConfig.TryGetValue(key, out var value))
+            {
+                return value;
+            }
+            throw new Exception($"Configuration variable '{key}' is missing in config.yaml");
+        }
+
+        [LuaMember]
+        public string prompt_input(string title, string? defaultValue = null)
+        {
+            if (defaultValue == null)
+            {
+                return AnsiConsole.Ask<string>(title);
+            }
+
+            return AnsiConsole.Prompt(new TextPrompt<string>(title).DefaultValue(defaultValue).ShowDefaultValue());
+        }
 
         [LuaMember]
         public string prompt_select(string title, LuaTable optionsTable)

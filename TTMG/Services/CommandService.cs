@@ -64,5 +64,23 @@ namespace TTMG.Services
         {
             return _commands.Values.Select(v => (v.Attribute.Code, v.Attribute.Action));
         }
+
+        public IEnumerable<string> GetSuggestions(string input)
+        {
+            var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return Enumerable.Empty<string>();
+
+            var code = parts[0].ToLower();
+            if (_commands.TryGetValue(code, out var cmdInfo))
+            {
+                var commandInstance = GetCommandInstance(code, cmdInfo);
+                var args = input.EndsWith(" ") 
+                    ? parts.Skip(1).Concat(new[] { "" }).ToArray() 
+                    : parts.Skip(1).ToArray();
+                return commandInstance.GetSuggestions(args);
+            }
+
+            return Enumerable.Empty<string>();
+        }
     }
 }

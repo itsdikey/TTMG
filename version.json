@@ -1,5 +1,5 @@
 {
-  "Version": "1.4.0",
-  "DownloadUrl": "https://github.com/itsdikey/TTMG/releases/download/v1.4.0/ttmg-windows.exe",
-  "ReleaseNotes": "## [1.4.0](https://github.com/itsdikey/TTMG/compare/v1.3.1...v1.4.0) (2026-02-10)\n\n\n### Features\n\n* config command, updater fix, std support ([#19](https://github.com/itsdikey/TTMG/issues/19)) ([d91c0d1](https://github.com/itsdikey/TTMG/commit/d91c0d16c04de7d08226df309f1e05e267b4607d))\n"
+  "Version": "1.5.0",
+  "DownloadUrl": "https://github.com/itsdikey/TTMG/releases/download/v1.5.0/ttmg-windows.exe",
+  "ReleaseNotes": "## [1.5.0](https://github.com/itsdikey/TTMG/compare/v1.4.0...v1.5.0) (2026-09-09)\n\n\n### Features\n\n* initial script level config, and command suggestions framework ([#33](https://github.com/itsdikey/TTMG/issues/33)) ([be54825](https://github.com/itsdikey/TTMG/commit/be54825e44d22077df2eb807a764421dafb8f608))\n\n\n### Bug Fixes\n\n* default bug fix ([be54825](https://github.com/itsdikey/TTMG/commit/be54825e44d22077df2eb807a764421dafb8f608))\n"
 }

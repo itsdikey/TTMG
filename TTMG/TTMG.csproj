@@ -5,7 +5,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.0.0</Version>
+    <!-- Single source of truth: repo-root version.txt is bumped by release-please on every
+         release (see .github/workflows/release.yml), so the built assembly version always
+         tracks the current release instead of a hard-coded stale value. -->
+    <VersionFromFile>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../version.txt'))</VersionFromFile>
+    <Version>$(VersionFromFile.Trim())</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,6 +1,8 @@
 print("Welcome to [cyan]Talk To Me Goose[/] sample script!")
 
-local name = prompt_input("Enter your pilot callsign for testing:")
+-- TTMG-4 regression: prompt_input shows "Maverick" as the default and
+-- returns it when you just press Enter.
+local name = prompt_input("Enter your pilot callsign for testing:", "Maverick")
 print("Greetings, [bold yellow]" .. name .. "[/]. Ready for departure.")
 
 local task = prompt_select("Select mission objective:", {

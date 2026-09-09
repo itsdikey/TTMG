@@ -35,10 +35,15 @@ namespace TTMG
         }
 
         [LuaMember]
-        public string prompt_input(string title) => AnsiConsole.Ask<string>(title);
+        public string prompt_input(string title, string? defaultValue = null)
+        {
+            if (defaultValue == null)
+            {
+                return AnsiConsole.Ask<string>(title);
+            }
 
-        [LuaMember]
-        public string prompt_input(string title) => AnsiConsole.Ask<string>(title);
+            return AnsiConsole.Prompt(new TextPrompt<string>(title).DefaultValue(defaultValue).ShowDefaultValue());
+        }
 
         [LuaMember]
         public string prompt_select(string title, LuaTable optionsTable)

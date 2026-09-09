@@ -181,6 +181,12 @@ namespace TTMG.Services
 
                     AnsiConsole.MarkupLine("[grey]Type script name, [yellow]number[/], or [bold yellow]\\command[/]. [blue]Tab[/] for menu.[/]");
 
+                    List<string> suggestions = GetCommandSuggestions(_commandInput);
+                    if (suggestions.Count > 0 && _selectedIndex >= suggestions.Count)
+                    {
+                        _selectedIndex = Math.Max(0, suggestions.Count - 1);
+                    }
+
                     var bestMatch = filtered
                         .Select(m => new { Meta = m, Score = ScoreMatch(_commandInput, m) })
                         .Where(x => x.Score > 0)
@@ -203,6 +209,27 @@ namespace TTMG.Services
                         AnsiConsole.Cursor.MoveLeft(bestMatch.DisplayName.Length-_commandInput.Length);
                     }
 
+                    if (suggestions.Count > 0)
+                    {
+                        int inputCol = "goose> ".Length + _commandInput.Length;
+                        int inputRow = Console.CursorTop;
+                        Console.WriteLine();
+                        int visibleCount = suggestions.Count > 15 ? 15 : suggestions.Count;
+                        for (int i = 0; i < visibleCount; i++)
+                        {
+                            string s = suggestions[i];
+                            if (i == _selectedIndex)
+                            {
+                                AnsiConsole.MarkupLine($"[black on white] > {s} [/]");
+                            }
+                            else
+                            {
+                                AnsiConsole.MarkupLine($"   {s}");
+                            }
+                        }
+                        AnsiConsole.Cursor.SetPosition(inputCol, inputRow);
+                    }
+
 
                     ConsoleKeyInfo key = Console.ReadKey(true);
                     if (key.Key == ConsoleKey.Enter)
@@ -219,20 +246,38 @@ namespace TTMG.Services
                         _selectedIndex = 0;
                         return Task.FromResult<string?>(null);
                     }
-                    if (key.Key == ConsoleKey.RightArrow
-                        && bestMatch!=null
-                        && _commandInput.Length>0)
+                    if (suggestions.Count > 0)
+                    {
+                        if (key.Key == ConsoleKey.UpArrow)
+                        {
+                            _selectedIndex = (_selectedIndex - 1 + suggestions.Count) % suggestions.Count;
+                        }
+                        else if (key.Key == ConsoleKey.DownArrow)
+                        {
+                            _selectedIndex = (_selectedIndex + 1) % suggestions.Count;
+                        }
+                        else if (key.Key == ConsoleKey.RightArrow)
+                        {
+                            _commandInput = ApplyCommandSuggestion(_commandInput, suggestions[_selectedIndex]);
+                            _selectedIndex = 0;
+                        }
+                    }
+                    else if (key.Key == ConsoleKey.RightArrow
+                        && bestMatch != null
+                        && _commandInput.Length > 0)
                     {
                         _commandInput = bestMatch.DisplayName;
                     }
                     if (key.Key == ConsoleKey.Backspace && _commandInput.Length > 0)
                     {
                         _commandInput = _commandInput[..^1];
+                        _selectedIndex = 0;
                         Console.Write("\b \b");
                     }
                     else if (!char.IsControl(key.KeyChar))
                     {
                         _commandInput += key.KeyChar;
+                        _selectedIndex = 0;
                         Console.Write(key.KeyChar);
                     }
                 }
@@ -333,6 +378,26 @@ namespace TTMG.Services
                     }
                 }
             }
+        }
+
+        private List<string> GetCommandSuggestions(string input)
+        {
+            if (!input.StartsWith(":")) return new List<string>();
+            try
+            {
+                return _commandService.GetSuggestions(input).ToList();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+        }
+
+        private static string ApplyCommandSuggestion(string input, string suggestion)
+        {
+            int lastSpace = input.LastIndexOf(' ');
+            if (lastSpace < 0) return $"{input} {suggestion}";
+            return input[..(lastSpace + 1)] + suggestion;
         }
 
         private void PrintVersion()

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.0](https://github.com/itsdikey/TTMG/compare/v1.5.0...v1.6.0) (2026-09-11)
+
+
+### Features
+
+* initial script level config, and command suggestions framework ([#36](https://github.com/itsdikey/TTMG/issues/36)) ([f526d4e](https://github.com/itsdikey/TTMG/commit/f526d4eb43e1956341546804daa8985300504f6b))
+
+
+### Bug Fixes
+
+* version fix ([#35](https://github.com/itsdikey/TTMG/issues/35)) ([9205056](https://github.com/itsdikey/TTMG/commit/9205056c210c28ead6cd17d2da569d3e590a1b23))
+
 ## [1.5.0](https://github.com/itsdikey/TTMG/compare/v1.4.0...v1.5.0) (2026-09-09)
 
 

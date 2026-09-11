@@ -1,8 +1,8 @@
 using Lua;
 using Lua.Standard;
 using Spectre.Console;
-using System.Text.RegularExpressions;
 using TTMG.Interfaces;
+using TTMG.Scripting;
 using YamlDotNet.Serialization;
 
 namespace TTMG.Services
@@ -140,7 +140,7 @@ namespace TTMG.Services
             { AnsiConsole.MarkupLine($"[red]File not found:[/] {path}"); return; }
             var scriptContent = await File.ReadAllTextAsync(path);
 
-            var scriptResult = await RunEphemeral(scriptContent);
+            var scriptResult = await RunEphemeral(scriptContent, path);
 
             bool requiresSecret = scriptResult.RequiresSecret;
             bool requiresStandardLibrary = scriptResult.RequiresStd;
@@ -168,9 +168,6 @@ namespace TTMG.Services
             }
 
             using var state = LuaState.Create();
-            var env = new LuaEnv(_configService.Config, _secretService, path, scriptConfig);
-            state.Environment["env"] = LuaValue.FromObject(env);
-            state.Environment["pass"] = sharedPassword != null ? LuaValue.FromObject(sharedPassword) : LuaValue.Nil;
 
             if (requiresStandardLibrary)
             {
@@ -178,17 +175,8 @@ namespace TTMG.Services
                 scriptContent = scriptContent.Replace("require('std')", "");
             }
 
-            string wrapper = @"
-                prompt_input = function(t, d) return env:prompt_input(t, d) end
-                prompt_select = function(t, o) return env:prompt_select(t, o) end
-                run_process = function(c, a, d) env:run_process(c, a, d) end
-                run_shell = function(c, d) env:run_shell(c, d) end
-                get_secret = function(n) return env:get_secret(n, pass) end
-                get_config = function(k) return env:get_config(k) end
-                print = function(t) env:print(t) end
-            ";
-
-            await state.DoStringAsync(wrapper);
+            var context = new LuaCommandContext(_configService.Config, _secretService, path, scriptConfig, sharedPassword);
+            LuaCommandRegistry.Default.RegisterEnvironment(state, context);
 
             try
             { 
@@ -197,66 +185,47 @@ namespace TTMG.Services
             catch (Exception ex) { AnsiConsole.WriteException(ex); }
         }
 
-        public class ScriptAnalysis
-        {
-            public bool RequiresSecret { get; set; }
-            public bool RequiresStd { get; set; }
-        }
-
-        private static async Task<ScriptAnalysis> RunEphemeral(string scriptContent)
+        private async Task<ScriptAnalysis> RunEphemeral(string scriptContent, string scriptPath)
         {
             var analysis = new ScriptAnalysis();
 
+            using var dryRunState = LuaState.Create();
+
+            var context = new LuaCommandContext(
+                _configService.Config,
+                _secretService,
+                scriptPath,
+                new Dictionary<string, string>(),
+                null,
+                analysis);
+
+            LuaCommandRegistry.Default.RegisterDryRunEnvironment(dryRunState, context, analysis);
+
+            dryRunState.Environment["require"] = new LuaFunction((executionContext, _) =>
             {
-                using var dryRunState = LuaState.Create();
+                var moduleName = executionContext.ArgumentCount > 0 && executionContext.GetArgument(0).Type == LuaValueType.String
+                    ? executionContext.GetArgument(0).Read<string>()
+                    : string.Empty;
 
-                // 1. Initialize our flags in the Lua environment
-                dryRunState.Environment["flag_secret"] = false;
-                dryRunState.Environment["flag_std"] = false;
-
-                // 2. Define the wrapper with mocks
-                string dryRunWrapper = @"
-                    prompt_input = function(t, d) return d or '' end
-                    prompt_select = function(t, o) return o[1] or '' end
-                    run_process = function(c, a, d) end
-                    run_shell = function(c, d) end
-                    print = function(t) end
-                    get_config = function(k) return '' end
-
-                    get_secret = function(n) 
-                        flag_secret = true
-                        error('SECRET_DETECTED') 
-                    end
-
-                    require = function(module_name)
-                        if module_name == 'std' then
-                            flag_std = true
-                            -- Return a dummy table so code like 'std.print()' doesn't crash
-                            return {} 
-                        end
-                        return {} 
-                    end
-                ";
-
-                await dryRunState.DoStringAsync(dryRunWrapper);
-
-                try
+                if (moduleName == "std")
                 {
-                    var dryRunTask = dryRunState.DoStringAsync(scriptContent).AsTask();
+                    analysis.RequiresStd = true;
+                }
 
-                    if (await Task.WhenAny(dryRunTask, Task.Delay(1000)) == dryRunTask)
-                    {
-                        await dryRunTask;
-                    }
-                }
-                catch (LuaRuntimeException ex) when (ex.Message.Contains("SECRET_DETECTED"))
+                return new ValueTask<int>(executionContext.Return(new LuaTable()));
+            });
+
+            try
+            {
+                var dryRunTask = dryRunState.DoStringAsync(scriptContent).AsTask();
+
+                if (await Task.WhenAny(dryRunTask, Task.Delay(1000)) == dryRunTask)
                 {
+                    await dryRunTask;
                 }
-                catch (Exception)
-                {
-                }
-                analysis.RequiresSecret = dryRunState.Environment["flag_secret"].ToBoolean();
-                analysis.RequiresStd = dryRunState.Environment["flag_std"].ToBoolean();
+            }
+            catch (Exception)
+            {
             }
 
             return analysis;
@@ -279,17 +248,19 @@ namespace TTMG.Services
                 var docLines = new[]
                 {
                     $"-- TTMG Script: {name.ToUpper()}",
-                    "-- Available methods:",
-                    "-- prompt_input(title[, default]) -> string       | Prompts the user for text input. Pressing Enter returns default when given.",
-                    "-- prompt_select(title, options_table) -> string | Shows a selection menu to the user.",
-                    "-- run_process(command, args, detached_bool)     | Runs an external process.",
-                    "-- run_shell(command, detached_bool)             | Runs a command in the default shell.",
-                    "-- get_secret(name) -> string?                   | Retrieves an encrypted secret from the store.",
-                    "-- get_config(key) -> string                    | Retrieves a value from config.yaml in the script folder.",
-                    "-- print(text)                                   | Prints text to the console (supports markup).",
-                    "-- require('std')                                | Includes the standard libraries",
+                    "-- Canonical API: call commands on the ttmg table.",
+                    "--   ttmg.prompt_input(title[, default]) -> string | Prompts the user for text input.",
+                    "--   ttmg.prompt_select(title, options_table) -> string | Shows a selection menu.",
+                    "--   ttmg.run_process(command, args, detached_bool) | Runs an external process.",
+                    "--   ttmg.run_shell(command, detached_bool) | Runs a command in the default shell.",
+                    "--   ttmg.get_secret(name) -> string? | Retrieves an encrypted secret from the store.",
+                    "--   ttmg.get_config(key) -> string | Retrieves a value from config.yaml in the script folder.",
+                    "--   ttmg.print(text) | Prints text to the console (supports markup).",
+                    "--   require('std') | Includes the standard libraries",
+                    "-- Legacy flat globals (prompt_input, prompt_select, run_process, run_shell,",
+                    "-- get_secret, get_config, print) are still supported for older scripts.",
                     "",
-                    $"print('Hello from {name}!')"
+                    $"ttmg.print('Hello from {name}!')"
                 };
                 var doc = string.Join(Environment.NewLine, docLines);
                 await File.WriteAllTextAsync(filePath, doc);

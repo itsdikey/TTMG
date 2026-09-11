@@ -1,67 +1,9 @@
 using System.Diagnostics;
-using System.Text.Json;
-using Lua;
-using Spectre.Console;
 
 namespace TTMG
 {
-    [LuaObject]
-    public partial class LuaEnv
+    public static class LuaEnv
     {
-        private readonly AppConfig _config;
-        private readonly Interfaces.ISecretService _secretService;
-        private readonly string _currentScriptPath;
-        private readonly Dictionary<string, string> _scriptConfig;
-
-        public LuaEnv(AppConfig config, Interfaces.ISecretService secretService, string currentScriptPath, Dictionary<string, string> scriptConfig)
-        {
-            _config = config;
-            _secretService = secretService;
-            _currentScriptPath = currentScriptPath;
-            _scriptConfig = scriptConfig;
-        }
-
-        [LuaMember]
-        public string? get_secret(string name, string? password = null) => _secretService.GetSecret(name, password);
-
-        [LuaMember]
-        public string get_config(string key)
-        {
-            if (_scriptConfig.TryGetValue(key, out var value))
-            {
-                return value;
-            }
-            throw new Exception($"Configuration variable '{key}' is missing in config.yaml");
-        }
-
-        [LuaMember]
-        public string prompt_input(string title, string? defaultValue = null)
-        {
-            if (defaultValue == null)
-            {
-                return AnsiConsole.Ask<string>(title);
-            }
-
-            return AnsiConsole.Prompt(new TextPrompt<string>(title).DefaultValue(defaultValue).ShowDefaultValue());
-        }
-
-        [LuaMember]
-        public string prompt_select(string title, LuaTable optionsTable)
-        {
-            var options = optionsTable.Select(pair => pair.Value.ToString() ?? "").ToList();
-            return AnsiConsole.Prompt(new SelectionPrompt<string>().Title(title).PageSize(10).AddChoices(options));
-        }
-
-        [LuaMember]
-        public void run_process(string command, string args, bool detached) => ExecuteProcess(command, args, detached);
-
-        [LuaMember]
-        public void run_shell(string command, bool detached)
-        {
-            var (shell, argsPrefix) = GetShellInfo(_config.DefaultShell);
-            ExecuteProcess(shell, $"{argsPrefix} \"{command.Replace("\"", "\\\"")}\"", detached);
-        }
-
         public static (string shell, string argsPrefix) GetShellInfo(string configShell)
         {
             return configShell.ToLower() switch
@@ -81,8 +23,5 @@ namespace TTMG
             if (detached) Process.Start(psi);
             else { using var process = Process.Start(psi); process?.WaitForExit(); }
         }
-        
-        [LuaMember]
-        public void print(string text) => AnsiConsole.MarkupLine(text);
     }
 }

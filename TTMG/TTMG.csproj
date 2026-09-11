@@ -38,4 +38,18 @@
     <EmbeddedResource Include="Templates\*.hbs" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <LuaApiDocsPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\docs\lua-api.md'))</LuaApiDocsPath>
+    <LuaApiDocsHost Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</LuaApiDocsHost>
+    <LuaApiDocsHost Condition="'$(LuaApiDocsHost)' == ''">dotnet</LuaApiDocsHost>
+  </PropertyGroup>
+
+  <Target Name="EmitLuaApiDocs"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildingProject)' == 'true'"
+          Inputs="$(TargetPath)"
+          Outputs="$(LuaApiDocsPath)">
+    <Exec Command="&quot;$(LuaApiDocsHost)&quot; &quot;$(TargetPath)&quot; --emit-lua-docs &quot;$(LuaApiDocsPath)&quot;" />
+  </Target>
+
 </Project>

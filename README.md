@@ -101,6 +101,7 @@ Switch between modes using the TAB key.
 *   Type `:create <name>` to create a new local script and open it in your editor.
 *   Type `:edit <name-or-alias>` to open an existing script in your configured editor.
 *   Type `:delete <name-or-alias>` to delete a script file (after a `y/N` confirmation).
+*   Type `:migrate-scripts` to rewrite legacy flat Lua calls (`print(...)`, `prompt_input(...)`, etc.) to the canonical `ttmg.*` form. It lists the affected files, asks for one confirmation, and only writes when confirmed. No arguments are accepted.
 *   Script names for `:edit`/`:delete` are matched against discovered scripts by display name or alias (case-insensitive); the name is prompted when omitted, and no/ambiguous matches are rejected.
 
 ### Menu Mode
@@ -110,10 +111,38 @@ Switch between modes using the TAB key.
 
 ## Lua API
 
-Scripts have access to the `env` object and global helper functions.
+Commands are exposed on the canonical `ttmg` table. For backwards compatibility the same
+functions are also registered as flat globals, so existing scripts keep working unchanged.
 
-*   `print(text)`: Prints text to the console. Supports Spectre.Console markup (e.g., `[red]text[/]`).
-*   `prompt_input(title[, default])`: Displays a text input prompt and returns the string. If `default` is supplied, it is shown as the default value and pressing Enter returns it.
-*   `prompt_select(title, options_table)`: Displays a selection menu and returns the chosen string.
-*   `run_process(command, args, detached)`: Executes a specific process with arguments.
-*   `run_shell(command, detached)`: Executes a command using the `defaultShell` configured in yaml.
+```lua
+-- Canonical usage
+local name = ttmg.prompt_input("Enter your callsign:", "Maverick")
+ttmg.print("Hello, " .. name)
+
+-- Legacy usage (same functions, still supported)
+local legacy = prompt_input("Enter your callsign:", "Maverick")
+print("Hello, " .. legacy)
+```
+
+*   `ttmg.print(text)`: Prints text to the console. Supports Spectre.Console markup (e.g., `[red]text[/]`).
+*   `ttmg.prompt_input(title[, default])`: Displays a text input prompt and returns the string. If `default` is supplied, it is shown as the default value and pressing Enter returns it.
+*   `ttmg.prompt_select(title, options_table)`: Displays a selection menu and returns the chosen string.
+*   `ttmg.run_process(command, args, detached)`: Executes a specific process with arguments.
+*   `ttmg.run_shell(command, detached)`: Executes a command using the `defaultShell` configured in yaml.
+*   `ttmg.get_secret(name)`: Retrieves an encrypted secret from the store. If the script uses this, TTMG asks for the store password once before running it.
+*   `ttmg.get_config(key)`: Reads a value from the `config.yaml` file in the script's folder.
+*   `require('std')`: Includes the Lua standard libraries.
+
+The legacy global names (`print`, `prompt_input`, `prompt_select`, `run_process`,
+`run_shell`, `get_secret`, `get_config`) resolve to the exact same functions as `ttmg.*`.
+
+### Generated API Reference
+
+The command reference in [`docs/lua-api.md`](docs/lua-api.md) is generated from the
+command registry. Regenerate it manually with:
+
+```powershell
+ttmg --emit-lua-docs docs/lua-api.md
+```
+
+A post-build MSBuild target also refreshes the file automatically after each build.

@@ -24,7 +24,7 @@ namespace TTMG.Commands
             var script = _scriptService.ResolveScript(name);
             if (script == null) return Task.CompletedTask;
 
-            if (!AnsiConsole.Confirm($"[yellow]Delete script[/] '[cyan]{script.DisplayName}[/]' ([grey]{script.FullPath}[/])?", false))
+            if (!Confirm($"[yellow]Delete script[/] '[cyan]{script.DisplayName}[/]' ([grey]{script.FullPath}[/])?", false))
             {
                 AnsiConsole.MarkupLine("[grey]Deletion cancelled.[/]");
                 return Task.CompletedTask;
@@ -33,6 +33,8 @@ namespace TTMG.Commands
             _scriptService.DeleteScript(script.FullPath);
             return Task.CompletedTask;
         }
+
+        protected virtual bool Confirm(string message, bool defaultValue) => AnsiConsole.Confirm(message, defaultValue);
 
         public IEnumerable<string> GetSuggestions(string[] args)
         {
